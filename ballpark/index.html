@@ -1,0 +1,332 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Ballpark: Chicago Budget Edition</title>
+<meta name="description" content="Guess the real numbers behind Chicago’s 2027 budget gap. How close can you get?">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Figtree:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: one game card at a time on a Chicago-flag field; star progress rail and running score above. Bright single theme by design. */
+:root {
+  --field: #eaf6fd;
+  --stripe: #8fd3f4;
+  --star: #e8253a;
+  --star-dark: #a3101f;
+  --ink: #0f1d33;
+  --ink-2: #3b4a60;
+  --card: #ffffff;
+  --line: #cfe3ef;
+  --bull: #18a058;
+  --close: #f2b705;
+  --park: #f07b1f;
+  --off: #3b4a60;
+  --display: "Bricolage Grotesque", "Arial Black", system-ui, sans-serif;
+  --body: "Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; min-height: 100vh; color: var(--ink); font-family: var(--body);
+  background:
+    linear-gradient(180deg, transparent 0 64px, var(--stripe) 64px 92px, transparent 92px 120px, var(--stripe) 120px 148px, transparent 148px) var(--field);
+  padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+a { color: #1f5f8b; }
+:focus-visible { outline: 3px solid var(--star); outline-offset: 2px; }
+.wrap { max-width: 640px; margin: 0 auto; padding-block: 14px 56px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.top { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 14px; font-weight: 600; height: 36px; }
+.top a { color: var(--ink); text-decoration: none; }
+.top a:hover { text-decoration: underline; }
+.mute { border: 2px solid var(--ink); background: var(--card); border-radius: 999px; padding: 4px 12px; font: 600 13px var(--body); cursor: pointer; color: var(--ink); }
+.title { text-align: center; margin: 4px 0 8px; position: relative; z-index: 1; }
+.title h1 { font-family: var(--display); font-weight: 800; font-size: clamp(44px, 12vw, 72px); line-height: 0.9; margin: 0; letter-spacing: -0.03em; color: var(--ink); text-shadow: 3px 3px 0 #fff; }
+.title h1 span { color: var(--star); }
+.title p { margin: 8px 0 0; font-family: var(--display); font-weight: 700; font-size: 15px; letter-spacing: 0.06em; text-transform: uppercase; background: var(--ink); color: #fff; display: inline-block; padding: 4px 12px; border-radius: 4px; transform: rotate(-1.5deg); }
+.hud { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 20px 0 12px; }
+.stars { display: flex; gap: 4px; }
+.stars svg { width: 28px; height: 28px; }
+.stars polygon { fill: #fff; stroke: var(--ink); stroke-width: 1.4; transition: fill 0.3s; }
+.stars .cur polygon { fill: var(--stripe); }
+.stars .bull polygon { fill: var(--bull); } .stars .close polygon { fill: var(--close); } .stars .park polygon { fill: var(--park); } .stars .off polygon { fill: var(--off); }
+.pts { font-family: var(--display); font-weight: 800; font-size: 26px; background: var(--card); border: 2px solid var(--ink); border-radius: 12px; padding: 2px 12px; box-shadow: 3px 3px 0 var(--ink); font-variant-numeric: tabular-nums; }
+.pts small { font-size: 13px; font-weight: 700; color: var(--ink-2); margin-left: 2px; }
+.card { background: var(--card); border: 2px solid var(--ink); border-radius: 18px; box-shadow: 6px 6px 0 var(--ink); padding: 22px 22px 24px; position: relative; }
+.qn { font-weight: 700; font-size: 13px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--star); margin: 0 0 6px; }
+.card h2 { font-family: var(--display); font-weight: 700; font-size: clamp(22px, 5vw, 28px); line-height: 1.15; margin: 0 0 18px; letter-spacing: -0.01em; text-wrap: balance; }
+.guess { text-align: center; font-family: var(--display); font-weight: 800; font-size: clamp(38px, 11vw, 60px); line-height: 1; letter-spacing: -0.02em; margin: 6px 0 2px; font-variant-numeric: tabular-nums; min-height: 1em; }
+.guess-l { text-align: center; font-size: 13px; font-weight: 600; color: var(--ink-2); text-transform: uppercase; letter-spacing: 0.08em; }
+.slider { margin: 18px 0 6px; position: relative; }
+input[type=range] { -webkit-appearance: none; appearance: none; width: 100%; height: 44px; background: transparent; margin: 0; cursor: pointer; }
+input[type=range]::-webkit-slider-runnable-track { height: 14px; border-radius: 7px; background: linear-gradient(90deg, #dff1fb, var(--stripe)); border: 2px solid var(--ink); }
+input[type=range]::-moz-range-track { height: 14px; border-radius: 7px; background: linear-gradient(90deg, #dff1fb, var(--stripe)); border: 2px solid var(--ink); }
+input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 34px; height: 34px; border-radius: 50%; background: var(--star); border: 3px solid var(--ink); margin-top: -12px; box-shadow: 2px 2px 0 var(--ink); }
+input[type=range]::-moz-range-thumb { width: 30px; height: 30px; border-radius: 50%; background: var(--star); border: 3px solid var(--ink); box-shadow: 2px 2px 0 var(--ink); }
+input[type=range]:disabled { cursor: default; opacity: 0.5; }
+.ticks { display: flex; justify-content: space-between; font-size: 12px; font-weight: 600; color: var(--ink-2); padding: 0 4px; }
+.nudge { display: flex; justify-content: center; gap: 8px; margin-top: 10px; }
+.nudge button { border: 2px solid var(--ink); background: var(--card); border-radius: 999px; padding: 6px 14px; font: 700 14px var(--body); cursor: pointer; color: var(--ink); }
+.nudge button:hover:not(:disabled) { background: var(--field); }
+.lock {
+  display: block; width: 100%; margin-top: 18px; border: 2px solid var(--ink); border-radius: 14px; cursor: pointer;
+  background: var(--star); color: #fff; font: 800 22px var(--display); letter-spacing: 0.01em; padding: 14px; box-shadow: 0 5px 0 var(--ink);
+  transition: transform 0.08s;
+}
+.lock:active { transform: translateY(3px); box-shadow: 0 2px 0 var(--ink); }
+.lock.next { background: var(--ink); }
+
+/* reveal */
+.track { position: relative; height: 54px; margin: 16px 6px 4px; }
+.track .bar { position: absolute; left: 0; right: 0; top: 24px; height: 6px; border-radius: 3px; background: var(--line); }
+.track .zone { position: absolute; top: 20px; height: 14px; border-radius: 7px; background: rgba(24, 160, 88, 0.25); }
+.pin { position: absolute; top: 0; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; transition: left 0.9s cubic-bezier(.2, .9, .2, 1); white-space: nowrap; }
+.pin i { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--ink); margin-top: 3px; }
+.pin.you { color: var(--star); } .pin.you i { background: var(--star); }
+.pin.act { color: var(--bull); top: 30px; flex-direction: column-reverse; } .pin.act i { background: var(--bull); margin: 0 0 3px; }
+.verdict { display: flex; align-items: center; justify-content: center; gap: 10px; margin: 6px 0 4px; }
+.badge { font-family: var(--display); font-weight: 800; font-size: 22px; color: #fff; padding: 4px 14px; border-radius: 8px; border: 2px solid var(--ink); transform: rotate(-2deg); animation: pop 0.45s cubic-bezier(.2, 1.6, .4, 1) both; }
+.badge.bull { background: var(--bull); } .badge.close { background: var(--close); color: var(--ink); } .badge.park { background: var(--park); } .badge.off { background: var(--off); }
+.plus { font-family: var(--display); font-weight: 800; font-size: 22px; animation: pop 0.45s 0.15s cubic-bezier(.2, 1.6, .4, 1) both; }
+@keyframes pop { from { transform: scale(0.3) rotate(-8deg); opacity: 0; } }
+.why { font-size: 17px; line-height: 1.5; color: var(--ink-2); margin: 14px 0 6px; }
+.src { font-size: 13px; font-weight: 600; }
+
+/* end */
+.end { text-align: center; }
+.end .big { font-family: var(--display); font-weight: 800; font-size: 76px; line-height: 1; letter-spacing: -0.03em; margin: 6px 0 0; }
+.end .big small { font-size: 26px; color: var(--ink-2); }
+.rank { font-family: var(--display); font-weight: 800; font-size: 28px; color: var(--star); margin: 6px 0 2px; }
+.rank-sub { color: var(--ink-2); margin: 0 0 14px; font-size: 16px; }
+.grid { font-size: 30px; letter-spacing: 4px; margin: 6px 0 16px; }
+.btnrow { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+.btnrow button { flex: 1 1 160px; margin-top: 0; font-size: 18px; }
+.copied { font-size: 13px; font-weight: 600; color: var(--bull); min-height: 18px; margin-top: 8px; }
+.more { margin-top: 18px; font-size: 15px; line-height: 1.7; }
+.foot { margin-top: 28px; font-size: 12.5px; line-height: 1.6; color: var(--ink-2); }
+.foot ul { padding-left: 18px; margin: 6px 0 0; }
+#confetti { position: fixed; inset: 0; pointer-events: none; z-index: 10; width: 100%; height: 100%; }
+@media (max-width: 480px) {
+  .card { padding: 18px 16px 20px; box-shadow: 4px 4px 0 var(--ink); }
+  .stars svg { width: 22px; height: 22px; }
+  .pts { font-size: 22px; }
+}
+@media (prefers-reduced-motion: reduce) { .badge, .plus { animation: none; } .pin { transition: none; } }
+</style>
+</head>
+<body>
+<canvas id="confetti" aria-hidden="true"></canvas>
+<div class="wrap">
+  <div class="top"><a href="../">← Chicago’s $882 Million Question</a><button class="mute" id="mute" type="button" aria-pressed="false">Sound on</button></div>
+  <div class="title">
+    <h1>Ball<span>park!</span></h1>
+    <p>Chicago Budget Edition</p>
+  </div>
+  <div class="hud">
+    <div class="stars" id="stars" aria-label="Progress"></div>
+    <div class="pts" aria-live="polite"><span id="pts">0</span><small>pts</small></div>
+  </div>
+  <div class="card" id="card"></div>
+  <div class="foot">
+    Every answer comes from published reporting and city documents. Sources:
+    <ul id="sources"></ul>
+  </div>
+</div>
+
+<script>
+const SRC = {
+  w0903: { t: 'WTTW News, “Chicago Faces $882M Budget Gap in 2027,” Sept. 3, 2026', u: 'https://news.wttw.com/2026/09/03/chicago-faces-882m-budget-gap-2027-johnson-touts-smaller-expected-election-year' },
+  w1020: { t: 'WTTW News, “Mayor Johnson Again Proposes Corporate Tax Hikes to Bridge Budget Gap,” Oct. 20, 2026', u: 'https://news.wttw.com/2026/10/20/mayor-johnson-again-proposes-corporate-tax-hikes-bridge-budget-gap-says-city-must-borrow' },
+  w1028: { t: 'WTTW News, “Chicago Police Department Overspent Its Budget By $520.5M From 2023-2025,” Oct. 28, 2026', u: 'https://news.wttw.com/2026/10/28/chicago-police-department-overspent-its-budget-5205m-2023-2025-data' },
+  pr: { t: 'City of Chicago, 2027 Budget Forecast press release, Sept. 3, 2026', u: 'https://www.chicago.gov/city/en/depts/mayor/press_room/press_releases/2026/september/fy27-budget-forecast.html' },
+};
+const QS = [
+  { q: 'How big is the budget gap Chicago projects for 2027?', a: 882.4e6, why: 'The city’s forecast projects an $882.4 million shortfall. A year earlier, officials faced a $1.15 billion gap.', src: 'w0903' },
+  { q: 'How much is the mayor’s entire proposed 2027 spending plan?', a: 17.6e9, why: 'Mayor Johnson’s 2027 proposal totals $17.6 billion. It includes no property tax increase, service cuts or layoffs.', src: 'w1020' },
+  { q: 'How much must Chicago pay its pension funds in 2027 just to follow state law?', a: 2.94e9, why: 'The required payment tops $2.94 billion, $90.5 million more than the year before. The city plans an extra $364 million on top of that.', src: 'w0903' },
+  { q: 'And how much does Chicago owe its four pension funds in all?', a: 36.4e9, why: 'The city owes $36.4 billion to the funds for police officers, firefighters, municipal employees and laborers.', src: 'w0903' },
+  { q: 'By the end of September 2026, how much had the Chicago Police Department paid in overtime?', a: 226.8e6, why: 'That’s already more than CPD’s $200 million overtime budget for the entire year.', src: 'w1028' },
+  { q: 'How much would the proposed “head tax” on big employers raise in a year?', a: 100e6, why: 'The tax would charge $25 a month per worker at firms with more than 125 employees. The City Council rejected a head tax last year.', src: 'w1020' },
+];
+const MIN = 6, MAX = 11; // log10 of $1 million … $100 billion
+const TIERS = [
+  { k: 'bull', l: 'Bullseye!', max: 0.05, p: 100, e: '🟩', s: 'win' },
+  { k: 'close', l: 'So close!', max: 0.15, p: 60, e: '🟨', s: 'good' },
+  { k: 'park', l: 'In the ballpark', max: 0.35, p: 25, e: '🟧', s: 'meh' },
+  { k: 'off', l: 'Way off', max: Infinity, p: 0, e: '⬛', s: 'bad' },
+];
+const RANKS = [
+  [520, 'Budget Director', 'You could run the city’s spreadsheets.'],
+  [400, 'City Comptroller', 'You know where the money goes.'],
+  [280, 'Alderperson', 'Solid instincts. Expect a few tough questions at budget hearings.'],
+  [150, 'Lobbyist in Training', 'You’re getting the hang of how big these numbers are.'],
+  [0, 'Tourist at the Bean', 'Big city, big numbers. Give it another go.'],
+];
+
+function fmt(v, exact = false) {
+  if (v >= 1e9) { const b = v / 1e9; return '$' + (exact ? +b.toFixed(2) : (b >= 10 ? b.toFixed(1) : b.toFixed(2))) + ' billion'; }
+  const m = v / 1e6; return '$' + (exact ? +m.toFixed(1) : (m >= 100 ? Math.round(m) : m >= 10 ? m.toFixed(1) : m.toFixed(2))) + ' million';
+}
+const fromSlider = x => Math.pow(10, x);
+const pct = v => ((Math.log10(v) - MIN) / (MAX - MIN)) * 100;
+
+/* ---------- sound ---------- */
+const S = {
+  ctx: null, on: true,
+  init() { if (this.ctx) { this.ctx.resume(); return; } const C = window.AudioContext || window.webkitAudioContext; if (C) this.ctx = new C(); },
+  tone(f, d, { t = 0, type = 'square', v = 0.08, slide } = {}) {
+    if (!this.on || !this.ctx) return; const c = this.ctx, s = c.currentTime + t;
+    const o = c.createOscillator(), g = c.createGain(); o.type = type; o.frequency.setValueAtTime(f, s); if (slide) o.frequency.exponentialRampToValueAtTime(slide, s + d);
+    g.gain.setValueAtTime(0.0001, s); g.gain.exponentialRampToValueAtTime(v, s + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, s + d);
+    o.connect(g); g.connect(c.destination); o.start(s); o.stop(s + d + 0.02);
+  },
+  play(n) {
+    switch (n) {
+      case 'tick': this.tone(1800, 0.02, { v: 0.03 }); break;
+      case 'lock': this.tone(330, 0.08, { v: 0.1 }); this.tone(494, 0.12, { t: 0.08, v: 0.1 }); break;
+      case 'count': this.tone(900 + Math.random() * 400, 0.03, { v: 0.025, type: 'triangle' }); break;
+      case 'win': [523, 659, 784, 1047].forEach((f, i) => this.tone(f, 0.18, { t: i * 0.09, v: 0.09 })); this.tone(1047, 0.6, { t: 0.36, v: 0.07, type: 'triangle' }); break;
+      case 'good': [523, 659, 784].forEach((f, i) => this.tone(f, 0.15, { t: i * 0.09, v: 0.08 })); break;
+      case 'meh': this.tone(440, 0.15, { v: 0.08 }); this.tone(415, 0.25, { t: 0.15, v: 0.08 }); break;
+      case 'bad': [392, 370, 349].forEach((f, i) => this.tone(f, 0.25, { t: i * 0.26, v: 0.07, type: 'sawtooth' })); this.tone(330, 0.6, { t: 0.78, v: 0.07, type: 'sawtooth' }); break;
+      case 'fanfare': [392, 523, 659, 784, 659, 784, 1047].forEach((f, i) => this.tone(f, 0.16, { t: i * 0.11, v: 0.08 })); break;
+    }
+  },
+};
+document.getElementById('mute').onclick = e => { S.on = !S.on; e.currentTarget.textContent = S.on ? 'Sound on' : 'Sound off'; e.currentTarget.setAttribute('aria-pressed', !S.on); };
+
+/* ---------- confetti (flag stars + stripes) ---------- */
+const cv = document.getElementById('confetti'), cx = cv.getContext('2d'); let parts = [], raf = null;
+const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+function confetti(n = 90) {
+  if (reduced) return;
+  const dpr = Math.min(devicePixelRatio, 2); cv.width = innerWidth * dpr; cv.height = innerHeight * dpr; cx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  for (let i = 0; i < n; i++) parts.push({ x: innerWidth / 2 + (Math.random() - 0.5) * 120, y: innerHeight * 0.45, vx: (Math.random() - 0.5) * 12, vy: -Math.random() * 13 - 4, r: Math.random() * 6.28, vr: (Math.random() - 0.5) * 0.3, s: 6 + Math.random() * 8, c: Math.random() < 0.55 ? '#e8253a' : '#8fd3f4', star: Math.random() < 0.5, life: 1 });
+  if (!raf) raf = requestAnimationFrame(drawConfetti);
+}
+function star(x, y, r) { cx.beginPath(); for (let k = 0; k < 12; k++) { const rr = k % 2 ? r * 0.45 : r, a = -Math.PI / 2 + k * Math.PI / 6; cx.lineTo(x + rr * Math.cos(a), y + rr * Math.sin(a)); } cx.closePath(); cx.fill(); }
+function drawConfetti() {
+  cx.clearRect(0, 0, innerWidth, innerHeight);
+  parts = parts.filter(p => p.life > 0 && p.y < innerHeight + 40);
+  for (const p of parts) {
+    p.vy += 0.35; p.vx *= 0.99; p.x += p.vx; p.y += p.vy; p.r += p.vr; p.life -= 0.006;
+    cx.save(); cx.translate(p.x, p.y); cx.rotate(p.r); cx.fillStyle = p.c; cx.globalAlpha = Math.min(1, p.life * 2);
+    if (p.star) star(0, 0, p.s * 0.7); else cx.fillRect(-p.s / 2, -p.s / 5, p.s, p.s / 2.5);
+    cx.restore();
+  }
+  raf = parts.length ? requestAnimationFrame(drawConfetti) : null;
+}
+
+/* ---------- game ---------- */
+const card = document.getElementById('card');
+const STAR = '<svg viewBox="0 0 24 24"><polygon points="12,1 14.75,7.24 21.53,6.5 17.5,12 21.53,17.5 14.75,16.76 12,23 9.25,16.76 2.47,17.5 6.5,12 2.47,6.5 9.25,7.24"/></svg>';
+let i = 0, total = 0, results = [];
+
+function drawStars() {
+  document.getElementById('stars').innerHTML = QS.map((_, k) => `<span class="${results[k] ? results[k].k : k === i ? 'cur' : ''}">${STAR}</span>`).join('');
+}
+function bumpPts(to) {
+  const el = document.getElementById('pts'), from = +el.textContent, t0 = performance.now();
+  const step = () => { const k = Math.min(1, (performance.now() - t0) / 700); el.textContent = Math.round(from + (to - from) * k); if (k < 1) requestAnimationFrame(step); };
+  step();
+}
+
+function ask() {
+  drawStars();
+  const q = QS[i];
+  card.innerHTML = `
+    <p class="qn">Question ${i + 1} of ${QS.length}</p>
+    <h2 id="qh">${q.q}</h2>
+    <div class="guess-l">Your guess</div>
+    <div class="guess" id="guess" aria-live="polite"></div>
+    <div class="slider"><input type="range" id="rng" min="${MIN}" max="${MAX}" step="0.005" value="8.5" aria-labelledby="qh" aria-valuetext=""></div>
+    <div class="ticks" aria-hidden="true"><span>$1M</span><span>$10M</span><span>$100M</span><span>$1B</span><span>$10B</span><span>$100B</span></div>
+    <div class="nudge"><button type="button" data-n="-0.05">− Less</button><button type="button" data-n="0.05">More +</button></div>
+    <button class="lock" id="lock" type="button">Lock it in</button>`;
+  const rng = document.getElementById('rng'), g = document.getElementById('guess');
+  let lastTick = 0;
+  const upd = () => { const v = fromSlider(+rng.value); g.textContent = fmt(v); rng.setAttribute('aria-valuetext', fmt(v)); const now = performance.now(); if (now - lastTick > 45) { S.play('tick'); lastTick = now; } };
+  rng.addEventListener('input', () => { S.init(); upd(); });
+  card.querySelectorAll('.nudge button').forEach(b => b.onclick = () => { S.init(); rng.value = Math.max(MIN, Math.min(MAX, +rng.value + +b.dataset.n)); upd(); });
+  g.textContent = fmt(fromSlider(+rng.value)); rng.setAttribute('aria-valuetext', g.textContent);
+  document.getElementById('lock').onclick = () => { S.init(); reveal(fromSlider(+rng.value)); };
+}
+
+function reveal(guess) {
+  const q = QS[i], err = Math.abs(Math.log10(guess / q.a));
+  const tier = TIERS.find(t => err <= t.max);
+  results[i] = { k: tier.k, e: tier.e }; total += tier.p;
+  S.play('lock');
+  const lo = q.a / Math.pow(10, 0.05), hi = q.a * Math.pow(10, 0.05);
+  card.innerHTML = `
+    <p class="qn">Question ${i + 1} of ${QS.length}</p>
+    <h2>${q.q}</h2>
+    <div class="guess-l">The answer</div>
+    <div class="guess" id="ans">${fmt(guess)}</div>
+    <div class="track" aria-hidden="true">
+      <div class="bar"></div>
+      <div class="zone" style="left:${pct(lo)}%;width:${pct(hi) - pct(lo)}%"></div>
+      <div class="pin you" style="left:${pct(guess)}%"><span>You</span><i></i></div>
+      <div class="pin act" id="pinA" style="left:${pct(guess)}%"><span>Actual</span><i></i></div>
+    </div>
+    <div class="ticks" aria-hidden="true"><span>$1M</span><span>$10M</span><span>$100M</span><span>$1B</span><span>$10B</span><span>$100B</span></div>
+    <div id="after" hidden>
+      <div class="verdict"><span class="badge ${tier.k}">${tier.l}</span><span class="plus">+${tier.p}</span></div>
+      <p class="why">You guessed ${fmt(guess)}. ${q.why}</p>
+      <a class="src" href="${SRC[q.src].u}" target="_blank" rel="noopener">Source: ${SRC[q.src].t}</a>
+      <button class="lock next" id="next" type="button">${i < QS.length - 1 ? 'Next question →' : 'See my score →'}</button>
+    </div>`;
+  requestAnimationFrame(() => { document.getElementById('pinA').style.left = pct(q.a) + '%'; });
+  // count from the guess to the real number on a log scale
+  const ans = document.getElementById('ans'), a0 = Math.log10(guess), a1 = Math.log10(q.a), t0 = performance.now(), dur = reduced ? 1 : 1100;
+  let lastC = 0;
+  const step = now => {
+    const k = Math.min(1, (now - t0) / dur), e = 1 - Math.pow(1 - k, 3);
+    ans.textContent = fmt(Math.pow(10, a0 + (a1 - a0) * e));
+    if (now - lastC > 70 && k < 1) { S.play('count'); lastC = now; }
+    if (k < 1) return requestAnimationFrame(step);
+    ans.textContent = fmt(q.a, true);
+    document.getElementById('after').hidden = false;
+    S.play(tier.s); bumpPts(total); drawStars();
+    if (tier.k === 'bull') confetti(120); else if (tier.k === 'close') confetti(50);
+    const nx = document.getElementById('next');
+    nx.onclick = () => { i++; if (i < QS.length) ask(); else end(); card.scrollIntoView({ behavior: reduced ? 'auto' : 'smooth', block: 'nearest' }); };
+  };
+  requestAnimationFrame(step);
+}
+
+function end() {
+  drawStars();
+  const [, rank, sub] = RANKS.find(([min]) => total >= min);
+  const grid = results.map(r => r.e).join('');
+  const share = `Ballpark! Chicago Budget Edition\n${total}/${QS.length * 100} · ${rank}\n${grid}\n${location.href.split('#')[0]}`;
+  card.innerHTML = `
+    <div class="end">
+      <p class="qn">Final score</p>
+      <div class="big">${total}<small> / ${QS.length * 100}</small></div>
+      <div class="rank">${rank}</div>
+      <p class="rank-sub">${sub}</p>
+      <div class="grid" aria-label="Results by question">${grid}</div>
+      <div class="btnrow">
+        <button class="lock" id="share" type="button">Copy my results</button>
+        <button class="lock next" id="again" type="button">Try again</button>
+      </div>
+      <div class="copied" id="copied" aria-live="polite"></div>
+      <p class="more">Want the serious version? <a href="../quiz/">Take the news quiz</a>.<br>Think you can close the gap? <a href="../game/">Play Gap City</a>.</p>
+    </div>`;
+  S.play('fanfare'); if (total >= 280) confetti(160);
+  document.getElementById('again').onclick = () => { i = 0; total = 0; results = []; bumpPts(0); ask(); };
+  document.getElementById('share').onclick = async () => {
+    const out = document.getElementById('copied');
+    try { await navigator.clipboard.writeText(share); out.textContent = 'Copied! Paste it anywhere.'; }
+    catch { out.innerHTML = `<textarea readonly rows="4" style="width:100%;font:13px var(--body)">${share}</textarea>`; out.querySelector('textarea').select(); }
+  };
+}
+
+document.getElementById('sources').innerHTML = Object.values(SRC).map(s => `<li><a href="${s.u}" target="_blank" rel="noopener">${s.t}</a></li>`).join('');
+ask();
+</script>
+</body>
+</html>

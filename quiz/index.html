@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Chicago Budget Gap Quiz</title>
+<meta name="description" content="Five questions about Chicago’s $882.4 million budget gap for 2027.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@400;500;600;700;800&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;0,8..60,700;1,8..60,400&display=swap">
+<style>
+/* Layout: one narrow reading column, newspaper-quiz style; every question stays on the page and locks once answered. Light, single theme by design. */
+:root {
+  --paper: #ffffff;
+  --ink: #121212;
+  --ink-2: #363636;
+  --muted: #727272;
+  --rule: #dfdfdf;
+  --hover: #f4f4f4;
+  --right: #1d7a46;
+  --right-bg: #e8f3ec;
+  --wrong: #c1121f;
+  --wrong-bg: #fbeceb;
+  --link: #326891;
+  --serif: "Source Serif 4", Georgia, "Times New Roman", serif;
+  --sans: "Libre Franklin", "Franklin Gothic Medium", "Helvetica Neue", Arial, sans-serif;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; background: var(--paper); color: var(--ink); font-family: var(--serif);
+  padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+a { color: var(--link); }
+:focus-visible { outline: 2px solid var(--link); outline-offset: 2px; }
+.top {
+  border-bottom: 1px solid var(--ink);
+  padding-block: 12px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  font-family: var(--sans); font-size: 12px; font-weight: 600; letter-spacing: 0.02em;
+  display: flex; justify-content: space-between; align-items: center; gap: 12px;
+}
+.top a { color: var(--ink); text-decoration: none; }
+.top a:hover { text-decoration: underline; }
+main {
+  max-width: 600px; margin: 0 auto;
+  padding-block: 40px 72px;
+  padding-left: max(20px, env(safe-area-inset-left, 0px)); padding-right: max(20px, env(safe-area-inset-right, 0px));
+}
+.kicker { font-family: var(--sans); font-size: 13px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; margin: 0 0 12px; }
+h1 { font-family: var(--serif); font-weight: 700; font-size: clamp(30px, 6.4vw, 42px); line-height: 1.12; letter-spacing: -0.01em; margin: 0 0 14px; text-wrap: balance; }
+.dek { font-size: 20px; line-height: 1.45; color: var(--ink-2); margin: 0 0 22px; }
+.byline { font-family: var(--sans); font-size: 13px; color: var(--muted); border-top: 1px solid var(--rule); padding-top: 12px; margin-bottom: 8px; }
+.byline b { color: var(--ink); font-weight: 600; }
+
+.q { border-top: 1px solid var(--rule); padding-top: 32px; margin-top: 40px; scroll-margin-top: 24px; }
+.q-num { font-family: var(--sans); font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin: 0 0 10px; }
+.q h2 { font-family: var(--serif); font-weight: 600; font-size: 23px; line-height: 1.3; margin: 0 0 18px; text-wrap: balance; }
+.opts { display: flex; flex-direction: column; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.opt {
+  width: 100%; text-align: left; cursor: pointer;
+  font-family: var(--sans); font-size: 16px; font-weight: 500; line-height: 1.35; color: var(--ink);
+  background: var(--paper); border: 1px solid #c7c7c7; border-radius: 4px;
+  padding: 13px 44px 13px 16px; position: relative;
+  transition: background 0.15s, border-color 0.15s;
+}
+.opt:hover:not([disabled]) { background: var(--hover); border-color: var(--ink); }
+.opt[disabled] { cursor: default; color: var(--muted); }
+.opt.right { background: var(--right-bg); border-color: var(--right); color: var(--ink); }
+.opt.wrong { background: var(--wrong-bg); border-color: var(--wrong); color: var(--ink); }
+.opt .mark { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); font-weight: 800; font-size: 16px; }
+.opt.right .mark { color: var(--right); }
+.opt.wrong .mark { color: var(--wrong); }
+.fb { margin-top: 16px; font-size: 17px; line-height: 1.55; color: var(--ink-2); }
+.fb .verdict { font-family: var(--sans); font-weight: 800; font-size: 15px; display: block; margin-bottom: 4px; }
+.fb .verdict.right { color: var(--right); }
+.fb .verdict.wrong { color: var(--wrong); }
+.fb .src { display: block; margin-top: 8px; font-family: var(--sans); font-size: 13px; }
+.next {
+  margin-top: 18px; font-family: var(--sans); font-size: 14px; font-weight: 600;
+  background: var(--ink); color: #fff; border: 0; border-radius: 999px; padding: 10px 18px; cursor: pointer;
+}
+.next:hover { background: #333; }
+
+.results { border-top: 2px solid var(--ink); margin-top: 48px; padding-top: 28px; text-align: center; scroll-margin-top: 24px; }
+.results .label { font-family: var(--sans); font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.score { font-family: var(--serif); font-weight: 700; font-size: 64px; line-height: 1; margin: 10px 0 6px; font-variant-numeric: lining-nums tabular-nums; }
+.score small { font-size: 28px; color: var(--muted); font-weight: 400; }
+.msg { font-size: 19px; line-height: 1.45; margin: 4px auto 18px; max-width: 30ch; }
+.dots { display: flex; justify-content: center; gap: 8px; margin-bottom: 22px; }
+.dots span { width: 14px; height: 14px; border-radius: 50%; }
+.dots .r { background: var(--right); }
+.dots .w { background: var(--wrong); }
+.again {
+  font-family: var(--sans); font-size: 15px; font-weight: 700; cursor: pointer;
+  background: var(--paper); color: var(--ink); border: 1px solid var(--ink); border-radius: 999px; padding: 11px 22px;
+}
+.again:hover { background: var(--ink); color: #fff; }
+.after { font-family: var(--sans); font-size: 14px; line-height: 1.8; margin-top: 20px; }
+.notes { margin-top: 56px; border-top: 1px solid var(--rule); padding-top: 16px; font-family: var(--sans); font-size: 13px; line-height: 1.55; color: var(--muted); }
+.notes ul { padding-left: 18px; margin: 8px 0 0; }
+.notes li { margin-bottom: 4px; }
+@media (max-width: 480px) {
+  main { padding-top: 28px; }
+  .dek { font-size: 18px; }
+  .q h2 { font-size: 21px; }
+}
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+</style>
+</head>
+<body>
+<div class="top"><a href="../">← Chicago’s $882 Million Question</a><span>Quiz</span></div>
+<main>
+  <p class="kicker">Chicago Budget</p>
+  <h1>How Well Do You Know Chicago’s $882 Million Budget Gap?</h1>
+  <p class="dek">The city faces a big shortfall in 2027, and the mayor has a plan to close it. Test what you know in five questions.</p>
+  <div class="byline">Figures from the city’s FY2027 budget forecast and WTTW News reporting · <b>Updated Nov. 1, 2026</b></div>
+
+  <div id="quiz"></div>
+
+  <section class="results" id="results" hidden aria-live="polite">
+    <div class="label">Your score</div>
+    <div class="score" id="score"></div>
+    <p class="msg" id="msg"></p>
+    <div class="dots" id="dots" aria-hidden="true"></div>
+    <button class="again" id="again" type="button">Try again</button>
+    <p class="after">Want something more playful? <a href="../ballpark/">Play Ballpark!, the guessing game →</a><br>Think you could do better than City Hall? <a href="../game/">Try balancing the budget yourself →</a></p>
+  </section>
+
+  <div class="notes">
+    Sources
+    <ul id="sources"></ul>
+  </div>
+</main>
+
+<script>
+const SRC = {
+  pr: { t: 'City of Chicago, “Mayor Brandon Johnson Publishes 2027 Budget Forecast,” Sept. 3, 2026', u: 'https://www.chicago.gov/city/en/depts/mayor/press_room/press_releases/2026/september/fy27-budget-forecast.html' },
+  w0903: { t: 'WTTW News, “Chicago Faces $882M Budget Gap in 2027,” Sept. 3, 2026', u: 'https://news.wttw.com/2026/09/03/chicago-faces-882m-budget-gap-2027-johnson-touts-smaller-expected-election-year' },
+  w1020: { t: 'WTTW News, “Mayor Johnson Again Proposes Corporate Tax Hikes to Bridge Budget Gap,” Oct. 20, 2026', u: 'https://news.wttw.com/2026/10/20/mayor-johnson-again-proposes-corporate-tax-hikes-bridge-budget-gap-says-city-must-borrow' },
+  w1028: { t: 'WTTW News, “Chicago Police Department Overspent Its Budget By $520.5M From 2023-2025,” Oct. 28, 2026', u: 'https://news.wttw.com/2026/10/28/chicago-police-department-overspent-its-budget-5205m-2023-2025-data' },
+};
+
+const QUESTIONS = [
+  {
+    q: 'How large is the budget gap Chicago projects for 2027?',
+    opts: ['$85.1 million', '$882.4 million', '$1.15 billion', '$2.94 billion'],
+    a: 1,
+    why: 'The city’s forecast, released Sept. 3, projects an $882.4 million shortfall, more than 23 percent smaller than the $1.15 billion gap officials faced a year earlier.',
+    src: 'w0903',
+  },
+  {
+    q: 'How much does Chicago owe its four employee pension funds?',
+    opts: ['$364 million', '$2.94 billion', '$12.1 billion', '$36.4 billion'],
+    a: 3,
+    why: 'The city owes $36.4 billion to the pension funds for police officers, firefighters, municipal employees and laborers, and its required pension payment for 2027 alone tops $2.94 billion.',
+    src: 'w0903',
+  },
+  {
+    q: 'What would the mayor’s proposed “head tax” charge large employers?',
+    opts: ['$100 a year per worker at every business', '$25 a month per worker at firms with more than 125 employees', '1 percent of payroll at firms with more than 50 employees', '$250 a month per worker at firms with more than 1,000 employees'],
+    a: 1,
+    why: 'The tax is projected to raise about $100 million after exempting workers in areas the federal government designates as disadvantaged, and the City Council rejected a head tax during last year’s budget fight.',
+    src: 'w1020',
+  },
+  {
+    q: 'How much has the mayor proposed borrowing to pay for lawsuits alleging police misconduct?',
+    opts: ['$82.5 million', '$130 million', '$481 million', '$1 billion'],
+    a: 2,
+    why: 'The plan calls for borrowing $350 million in 2027 and $131 million in 2028, and the city expects to pay about $190 million in interest on the 2027 portion over seven years.',
+    src: 'w1028',
+  },
+  {
+    q: 'Which tax would the mayor raise from 15 percent to 20 percent, bringing in an estimated $234 million?',
+    opts: ['The city sales tax', 'The hotel tax', 'The personal property lease tax, which covers rented equipment and cloud software', 'The amusement tax'],
+    a: 2,
+    why: 'The mayor describes the lease tax as a tax on “big tech”; the rate was 9 percent in 2020, and vehicle rentals would stay at 15 percent under the proposal.',
+    src: 'w1020',
+  },
+];
+
+const MESSAGES = [
+  [5, 'Perfect score. You could brief the City Council.'],
+  [4, 'Sharp. You know the numbers better than most.'],
+  [3, 'Not bad. The forecast rewards a second read.'],
+  [0, 'Chicago’s budget is complicated. Give it another try.'],
+];
+
+const quizEl = document.getElementById('quiz');
+let answers = [];
+
+function render() {
+  answers = Array(QUESTIONS.length).fill(null);
+  quizEl.innerHTML = QUESTIONS.map((q, i) => `
+    <section class="q" id="q${i}" aria-labelledby="qh${i}">
+      <p class="q-num">Question ${i + 1} of ${QUESTIONS.length}</p>
+      <h2 id="qh${i}">${q.q}</h2>
+      <ul class="opts">${q.opts.map((o, j) => `<li><button class="opt" type="button" data-q="${i}" data-o="${j}">${o}<span class="mark" aria-hidden="true"></span></button></li>`).join('')}</ul>
+      <div class="fb" id="fb${i}" aria-live="polite"></div>
+    </section>`).join('');
+  document.getElementById('results').hidden = true;
+}
+
+function choose(i, j) {
+  if (answers[i] !== null) return;
+  const q = QUESTIONS[i], right = j === q.a;
+  answers[i] = right;
+  document.querySelectorAll(`.opt[data-q="${i}"]`).forEach(b => {
+    const o = +b.dataset.o;
+    b.disabled = true;
+    if (o === q.a) { b.classList.add('right'); b.querySelector('.mark').textContent = '✓'; }
+    else if (o === j) { b.classList.add('wrong'); b.querySelector('.mark').textContent = '✕'; }
+  });
+  const last = answers.every(a => a !== null);
+  const nextIdx = answers.findIndex(a => a === null);
+  document.getElementById('fb' + i).innerHTML =
+    `<span class="verdict ${right ? 'right' : 'wrong'}">${right ? 'Correct.' : 'Not quite.'}</span>${q.why}` +
+    `<a class="src" href="${SRC[q.src].u}" target="_blank" rel="noopener">Source: ${SRC[q.src].t}</a>` +
+    `<button class="next" type="button" data-next="${last ? 'results' : 'q' + nextIdx}">${last ? 'See your score' : 'Next question'} ↓</button>`;
+  if (last) showResults();
+}
+
+function showResults() {
+  const n = answers.filter(Boolean).length;
+  document.getElementById('score').innerHTML = `${n}<small> / ${QUESTIONS.length}</small>`;
+  document.getElementById('msg').textContent = MESSAGES.find(([min]) => n >= min)[1];
+  document.getElementById('dots').innerHTML = answers.map(a => `<span class="${a ? 'r' : 'w'}"></span>`).join('');
+  document.getElementById('results').hidden = false;
+}
+
+const smooth = () => matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth';
+quizEl.addEventListener('click', e => {
+  const opt = e.target.closest('.opt');
+  if (opt) return choose(+opt.dataset.q, +opt.dataset.o);
+  const nx = e.target.closest('.next');
+  if (nx) document.getElementById(nx.dataset.next).scrollIntoView({ behavior: smooth(), block: 'start' });
+});
+document.getElementById('again').addEventListener('click', () => {
+  render();
+  window.scrollTo({ top: 0, behavior: smooth() });
+});
+document.getElementById('sources').innerHTML = Object.values(SRC).map(s => `<li><a href="${s.u}" target="_blank" rel="noopener">${s.t}</a></li>`).join('');
+render();
+</script>
+</body>
+</html>

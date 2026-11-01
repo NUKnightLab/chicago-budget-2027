@@ -1,0 +1,2114 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Close Chicago’s $882.4M FY2027 budget gap in an isometric city-builder game. Every choice links to its source.">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font:14px system-ui,-apple-system,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>Gap City Chicago</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee&family=Chivo:wght@400;600;800&family=Chivo+Mono:wght@500;700&display=swap">
+</head>
+<body>
+<style>
+/* Layout: full-bleed isometric Chicago; HUD bar on top, budget console docked right (desktop) or as a bottom sheet (phone). Single dark "city at dusk" look by design. */
+:root {
+  --night: #0c1424;
+  --panel: rgba(12, 21, 37, 0.94);
+  --panel-2: #15233a;
+  --panel-3: #1d2f4c;
+  --line: rgba(143, 211, 244, 0.18);
+  --sky: #8fd3f4;          /* Chicago flag blue */
+  --star: #e8253a;         /* Chicago flag star red */
+  --ink: #eef6fc;
+  --muted: #9db2c8;
+  --good: #5bd88a;
+  --warn: #f6c044;
+  --bad: #ff6464;
+  --f-display: "Bungee", "Arial Black", system-ui, sans-serif;
+  --f-body: "Chivo", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --f-mono: "Chivo Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  --sky-top: #5fa9de;
+  --sky-bot: #cfe6f2;
+  --sheet-h: 0px;
+  --panel-w: 0px;
+  --hud-h: 0px;
+  color-scheme: dark;
+}
+html, body { height: 100%; }
+body {
+  background: var(--night);
+  color: var(--ink);
+  font-family: var(--f-body);
+  overflow: hidden;
+  overscroll-behavior: none;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-font-smoothing: antialiased;
+}
+#app { position: fixed; inset: 0; overflow: hidden; }
+#sky { position: absolute; inset: 0; background: linear-gradient(180deg, var(--sky-top), var(--sky-bot)); }
+#c { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: grab; }
+#c.dragging { cursor: grabbing; }
+button { font: inherit; color: inherit; }
+a { color: var(--sky); }
+:focus-visible { outline: 2px solid var(--sky); outline-offset: 2px; }
+
+/* ---------- HUD ---------- */
+#hud {
+  position: absolute; top: 0; left: 0; right: var(--panel-w);
+  padding-top: calc(env(safe-area-inset-top, 0px) + 8px);
+  padding-bottom: 8px;
+  padding-left: max(12px, env(safe-area-inset-left, 0px));
+  padding-right: max(12px, env(safe-area-inset-right, 0px));
+  background: linear-gradient(180deg, rgba(8, 14, 26, 0.92), rgba(8, 14, 26, 0.72));
+  border-bottom: 1px solid var(--line);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  display: flex; flex-direction: column; gap: 8px;
+  z-index: 5;
+}
+.hud-row { display: flex; align-items: center; gap: 10px; }
+.brand { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.brand svg { width: 22px; height: 22px; flex: none; }
+.brand b { font-family: var(--f-display); font-weight: 400; font-size: 18px; letter-spacing: 0.02em; white-space: nowrap; }
+.brand small { display: block; font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
+.gap {
+  margin-left: auto; margin-right: auto;
+  display: flex; flex-direction: column; align-items: center;
+  padding: 3px 14px 4px; border-radius: 8px;
+  background: #050a14; border: 1px solid rgba(255, 100, 100, 0.4);
+  box-shadow: inset 0 0 18px rgba(255, 60, 60, 0.18);
+  min-width: 170px;
+}
+.gap.ok { border-color: rgba(91, 216, 138, 0.5); box-shadow: inset 0 0 18px rgba(91, 216, 138, 0.2); }
+.gap span { font-size: 9px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); }
+.gap strong { font-family: var(--f-mono); font-weight: 700; font-size: 24px; line-height: 1.05; color: var(--bad); font-variant-numeric: tabular-nums; text-shadow: 0 0 10px rgba(255, 80, 80, 0.55); }
+.gap.ok strong { color: var(--good); text-shadow: 0 0 10px rgba(91, 216, 138, 0.55); }
+.gap.bump { animation: bump 0.35s ease; }
+@keyframes bump { 40% { transform: scale(1.08); } }
+.hud-btns { display: flex; gap: 6px; }
+.icon-btn {
+  width: 36px; height: 36px; border-radius: 8px; border: 1px solid var(--line);
+  background: var(--panel-2); display: grid; place-items: center; cursor: pointer;
+}
+.icon-btn svg { width: 18px; height: 18px; fill: var(--ink); }
+.icon-btn[aria-pressed="false"] { opacity: 0.5; }
+.icon-btn:hover { background: var(--panel-3); }
+
+.meters { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
+.meter { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.meter .mh { display: flex; align-items: center; gap: 5px; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); white-space: nowrap; overflow: hidden; }
+.meter .mh svg { width: 13px; height: 13px; fill: var(--sky); flex: none; }
+.meter .mh em { margin-left: auto; font-style: normal; font-family: var(--f-mono); color: var(--ink); letter-spacing: 0; font-size: 11px; }
+.bar { height: 6px; border-radius: 3px; background: rgba(255, 255, 255, 0.1); overflow: hidden; }
+.bar i { display: block; height: 100%; width: 50%; border-radius: 3px; background: var(--good); transition: width 0.5s ease, background-color 0.5s; }
+.meter.flash-up .bar { box-shadow: 0 0 0 1px var(--good); }
+.meter.flash-down .bar { box-shadow: 0 0 0 1px var(--bad); }
+.chip-val { font-family: var(--f-mono); font-size: 12px; color: var(--ink); }
+.meter.votes .chip-val.bad { color: var(--bad); }
+.meter.votes .chip-val.good { color: var(--good); }
+
+/* ---------- map controls & overlays ---------- */
+#mapctl {
+  position: absolute; z-index: 4;
+  left: max(12px, env(safe-area-inset-left, 0px));
+  bottom: calc(var(--sheet-h) + 12px + env(safe-area-inset-bottom, 0px));
+  display: flex; flex-direction: column; gap: 6px;
+}
+#mapctl .icon-btn { background: rgba(12, 21, 37, 0.85); }
+#labels { position: absolute; inset: 0; pointer-events: none; z-index: 2; overflow: hidden; }
+.lbl {
+  position: absolute; left: 0; top: 0; transform: translate(-50%, -100%);
+  padding: 2px 7px; border-radius: 4px; white-space: nowrap;
+  font-size: 11px; font-weight: 600; color: #0c1424; background: rgba(238, 246, 252, 0.88);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+.lbl::after { content: ""; position: absolute; left: 50%; bottom: -4px; margin-left: -4px; border: 4px solid transparent; border-bottom: 0; border-top-color: rgba(238, 246, 252, 0.88); }
+.floater {
+  position: absolute; left: 0; top: 0; z-index: 3; pointer-events: none;
+  font-family: var(--f-display); font-size: 22px; white-space: nowrap;
+  transform: translate(-50%, -50%);
+  text-shadow: 0 2px 0 #000, 0 0 10px rgba(0, 0, 0, 0.6);
+  animation: floatUp 1.6s ease-out forwards;
+}
+.floater.pos { color: var(--good); }
+.floater.neg { color: var(--bad); }
+.floater.neu { color: var(--sky); font-size: 16px; }
+@keyframes floatUp {
+  0% { opacity: 0; margin-top: 10px; }
+  15% { opacity: 1; }
+  70% { opacity: 1; }
+  100% { opacity: 0; margin-top: -60px; }
+}
+
+#info {
+  position: absolute; z-index: 6;
+  left: max(12px, env(safe-area-inset-left, 0px));
+  bottom: calc(var(--sheet-h) + 14px + env(safe-area-inset-bottom, 0px));
+  margin-left: 52px;
+  width: min(330px, calc(100% - 90px - var(--panel-w)));
+  background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
+  padding: 12px 14px; box-shadow: 0 8px 30px rgba(0, 0, 0, 0.45);
+}
+#info h4 { margin: 0 24px 4px 0; font-size: 15px; }
+#info p { margin: 0; font-size: 13px; line-height: 1.45; color: #cfdceb; }
+#info .x { position: absolute; top: 6px; right: 6px; width: 28px; height: 28px; border: 0; background: none; cursor: pointer; font-size: 18px; color: var(--muted); }
+
+/* ---------- budget console ---------- */
+#panel {
+  position: absolute; z-index: 5; right: 0; bottom: 0;
+  background: var(--panel);
+  border-top: 1px solid var(--line);
+  display: flex; flex-direction: column;
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  transition: transform 0.35s ease;
+}
+#panel.away { transform: translateY(110%); }
+.sheet-handle { display: none; }
+.p-head { display: flex; flex-direction: column; gap: 8px; padding-block: 10px 6px; padding-left: max(14px, env(safe-area-inset-left, 0px)); padding-right: max(14px, env(safe-area-inset-right, 0px)); }
+.p-title { display: flex; align-items: center; gap: 8px; }
+.p-title h2 { margin: 0; font-family: var(--f-display); font-weight: 400; font-size: 15px; letter-spacing: 0.04em; }
+.presets { margin-left: auto; display: flex; gap: 6px; }
+.presets button { font-size: 11px; padding: 5px 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--panel-2); cursor: pointer; color: var(--muted); }
+.presets button:hover { color: var(--ink); }
+.tabs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
+.tab {
+  border: 1px solid var(--line); background: var(--panel-2); border-radius: 8px;
+  padding: 6px 4px 5px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 1px;
+}
+.tab b { font-size: 12px; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; }
+.tab small { font-family: var(--f-mono); font-size: 11px; color: var(--muted); }
+.tab small.pos { color: var(--good); }
+.tab small.neg { color: var(--bad); }
+.tab[aria-selected="true"] { background: var(--sky); border-color: var(--sky); color: #0c1424; }
+.tab[aria-selected="true"] small { color: #0c1424; }
+.levers { flex: 1; min-height: 0; overflow-y: auto; padding-block: 4px 10px; padding-left: max(14px, env(safe-area-inset-left, 0px)); padding-right: max(14px, env(safe-area-inset-right, 0px)); display: flex; flex-direction: column; gap: 8px; -webkit-overflow-scrolling: touch; }
+.cat-note { font-size: 12px; color: var(--muted); line-height: 1.4; margin: 2px 0 2px; }
+.lever { background: var(--panel-2); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; transition: border-color 0.2s, background 0.2s; }
+.lever.on { border-color: rgba(143, 211, 244, 0.6); background: var(--panel-3); }
+.lv-top { display: flex; align-items: flex-start; gap: 10px; }
+.lv-top h3 { margin: 0; font-size: 14px; line-height: 1.25; font-weight: 800; flex: 1; min-width: 0; text-wrap: balance; }
+.amt { font-family: var(--f-mono); font-weight: 700; font-size: 14px; white-space: nowrap; }
+.amt.pos { color: var(--good); }
+.amt.neg { color: var(--bad); }
+.amt.zero { color: var(--muted); }
+.lever:not(.on) .amt { opacity: 0.55; }
+.lv-sub { margin: 0; font-size: 12px; color: var(--muted); line-height: 1.35; }
+.lv-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.sw {
+  position: relative; width: 62px; height: 30px; border-radius: 15px; border: 1px solid var(--line);
+  background: #0a1220; cursor: pointer; flex: none; padding: 0;
+}
+.sw .knob { position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; border-radius: 50%; background: var(--muted); transition: left 0.18s, background 0.18s; }
+.sw .sw-l { position: absolute; right: 9px; top: 50%; transform: translateY(-50%); font-size: 10px; font-weight: 800; letter-spacing: 0.08em; color: var(--muted); }
+.sw[aria-checked="true"] { background: var(--sky); border-color: var(--sky); }
+.sw[aria-checked="true"] .knob { left: 35px; background: #0c1424; }
+.sw[aria-checked="true"] .sw-l { right: auto; left: 9px; color: #0c1424; }
+.seg { display: flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; flex: none; }
+.seg button { border: 0; background: #0a1220; padding: 6px 9px; font-size: 12px; font-weight: 600; cursor: pointer; color: var(--muted); border-right: 1px solid var(--line); }
+.seg button:last-child { border-right: 0; }
+.seg button[aria-pressed="true"] { background: var(--sky); color: #0c1424; }
+.fx { display: flex; flex-wrap: wrap; gap: 4px; }
+.fxc { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; padding: 2px 6px; border-radius: 4px; background: rgba(255, 255, 255, 0.06); color: var(--muted); white-space: nowrap; }
+.fxc svg { width: 11px; height: 11px; fill: currentColor; }
+.fxc.up { color: var(--good); }
+.fxc.down { color: var(--bad); }
+.tag { font-size: 10px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; padding: 2px 6px; border-radius: 4px; }
+.tag.est { background: rgba(246, 192, 68, 0.15); color: var(--warn); }
+.tag.once { background: rgba(143, 211, 244, 0.12); color: var(--sky); }
+details { font-size: 12.5px; }
+summary { cursor: pointer; color: var(--sky); font-weight: 600; list-style: none; display: inline-flex; align-items: center; gap: 4px; }
+summary::-webkit-details-marker { display: none; }
+summary::before { content: "+"; font-family: var(--f-mono); }
+details[open] summary::before { content: "−"; }
+details p { margin: 6px 0; line-height: 1.5; color: #cfdceb; }
+.srcs { margin: 4px 0 0; padding-left: 16px; display: flex; flex-direction: column; gap: 4px; line-height: 1.35; }
+.p-foot {
+  display: flex; align-items: center; gap: 10px;
+  border-top: 1px solid var(--line);
+  padding-block: 10px calc(10px + env(safe-area-inset-bottom, 0px));
+  padding-left: max(14px, env(safe-area-inset-left, 0px)); padding-right: max(14px, env(safe-area-inset-right, 0px));
+}
+.p-foot .need { font-size: 12px; color: var(--muted); line-height: 1.3; flex: 1; min-width: 0; }
+.p-foot .need b { color: var(--ink); font-family: var(--f-mono); }
+.cta {
+  font-family: var(--f-display); font-weight: 400; font-size: 15px; letter-spacing: 0.03em;
+  border: 0; border-radius: 10px; padding: 12px 16px; cursor: pointer;
+  background: var(--star); color: #fff; box-shadow: 0 4px 0 #8f1020; white-space: nowrap;
+}
+.cta:active { transform: translateY(2px); box-shadow: 0 2px 0 #8f1020; }
+.cta[disabled] { background: #3a465a; box-shadow: 0 4px 0 #222b38; color: #9aa6b8; cursor: not-allowed; }
+.cta.alt { background: var(--sky); color: #0c1424; box-shadow: 0 4px 0 #4a8db0; }
+
+/* desktop: docked console */
+@media (min-width: 900px) {
+  :root { --panel-w: 400px; }
+  #panel { top: 0; width: 400px; border-top: 0; border-left: 1px solid var(--line); padding-top: env(safe-area-inset-top, 0px); }
+  #panel.away { transform: translateX(110%); }
+  #mapctl { bottom: calc(16px + env(safe-area-inset-bottom, 0px)); }
+  #info { bottom: calc(16px + env(safe-area-inset-bottom, 0px)); }
+}
+/* phone & tablet: bottom sheet */
+@media (max-width: 899.98px) {
+  #panel { left: 0; height: min(52vh, 480px); border-radius: 16px 16px 0 0; box-shadow: 0 -8px 30px rgba(0, 0, 0, 0.4); }
+  #panel.collapsed .levers { display: none; }
+  #panel.collapsed { height: auto; }
+  .sheet-handle { display: flex; justify-content: center; align-items: center; height: 22px; border: 0; background: none; cursor: pointer; width: 100%; padding: 0; }
+  .sheet-handle i { width: 44px; height: 5px; border-radius: 3px; background: rgba(255, 255, 255, 0.3); }
+  .p-head { padding-top: 0; }
+  .meters { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 5px 8px; }
+  .gap { min-width: 0; padding: 2px 10px 3px; }
+  .gap strong { font-size: 20px; }
+  .brand small { display: none; }
+  #mapctl { gap: 5px; }
+  #mapctl .icon-btn { width: 32px; height: 32px; }
+  #info { margin-left: 46px; }
+}
+@media (max-width: 899.98px) and (pointer: coarse) { #zIn, #zOut { display: none; } }
+#intro .row-end { position: sticky; bottom: -20px; background: var(--panel); padding-block: 10px; margin-inline: -4px; padding-inline: 4px; }
+@media (max-width: 520px) {
+  .brand b { font-size: 0; }
+  .brand b::after { content: "GC"; font-size: 16px; }
+  .hud-btns .opt { display: none; }
+  .meter .mh span { display: none; }
+  .presets button { padding: 5px 6px; }
+}
+
+/* ---------- modals ---------- */
+.modal {
+  position: absolute; inset: 0; z-index: 20; display: grid; place-items: center;
+  background: rgba(5, 9, 18, 0.62); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px);
+  padding-block: calc(env(safe-area-inset-top, 0px) + 16px) calc(env(safe-area-inset-bottom, 0px) + 16px);
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  overflow-y: auto;
+}
+.card {
+  width: min(640px, 100%); background: var(--panel); border: 1px solid var(--line); border-radius: 16px;
+  padding: 22px 22px 20px; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.55); position: relative;
+  max-height: 100%; overflow-y: auto;
+}
+.card h1 { font-family: var(--f-display); font-weight: 400; font-size: clamp(34px, 8vw, 54px); line-height: 0.95; margin: 4px 0 6px; letter-spacing: 0.01em; }
+.card h1 .r { color: var(--star); }
+.card h2 { font-family: var(--f-display); font-weight: 400; font-size: 22px; margin: 0 0 8px; letter-spacing: 0.02em; }
+.card h3 { font-size: 13px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin: 18px 0 8px; }
+.card p { line-height: 1.55; margin: 8px 0; color: #d6e2ee; max-width: 62ch; }
+.eyebrow { font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--sky); font-weight: 800; display: flex; align-items: center; gap: 6px; }
+.eyebrow svg { width: 16px; height: 16px; }
+.flagstripe { height: 8px; margin: 14px 0 4px; background: linear-gradient(180deg, transparent 0 15%, var(--sky) 15% 35%, transparent 35% 65%, var(--sky) 65% 85%, transparent 85%); }
+.gapbar { display: flex; height: 34px; border-radius: 6px; overflow: hidden; font-size: 12px; font-weight: 800; margin-top: 6px; }
+.gapbar div { display: flex; align-items: center; padding: 0 10px; white-space: nowrap; overflow: hidden; }
+.gapbar .rv { background: #b9455a; flex: 375.9; }
+.gapbar .cs { background: #e8253a; flex: 506.5; }
+.gapbar-legend { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); margin-top: 4px; gap: 10px; }
+.drivers { display: grid; grid-template-columns: 1fr auto; gap: 4px 14px; font-size: 13px; margin: 6px 0 0; }
+.drivers dt { color: #d6e2ee; }
+.drivers dd { margin: 0; font-family: var(--f-mono); text-align: right; color: var(--ink); }
+.steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.steps div { background: var(--panel-2); border-radius: 10px; padding: 10px; font-size: 13px; line-height: 1.4; color: #cfdceb; }
+.steps b { display: block; font-family: var(--f-display); font-weight: 400; color: var(--sky); font-size: 13px; margin-bottom: 2px; }
+.row-end { display: flex; gap: 10px; align-items: center; justify-content: flex-end; flex-wrap: wrap; margin-top: 16px; }
+.fine { font-size: 12px; color: var(--muted); line-height: 1.5; }
+.fine a { color: var(--sky); }
+.srclist { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; font-size: 13px; line-height: 1.4; }
+@media (max-width: 560px) { .steps { grid-template-columns: 1fr; } .card { padding: 18px 16px; } }
+
+/* council */
+.hemi { width: 100%; max-width: 420px; display: block; margin: 6px auto 0; }
+.hemi circle { fill: #2a3850; transition: fill 0.12s; }
+.hemi circle.aye { fill: var(--good); }
+.hemi circle.nay { fill: var(--bad); }
+.tally { display: flex; justify-content: center; gap: 28px; font-family: var(--f-mono); font-size: 15px; margin-top: 4px; }
+.tally .a { color: var(--good); }
+.tally .n { color: var(--bad); }
+.verdict { text-align: center; font-family: var(--f-display); font-size: 26px; margin: 10px 0 0; min-height: 34px; }
+.verdict.pass { color: var(--good); }
+.verdict.fail { color: var(--bad); }
+.foes { font-size: 13px; color: #cfdceb; }
+
+/* sim bar */
+#simbar {
+  position: absolute; z-index: 6; left: 50%; transform: translateX(-50%);
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  width: min(720px, calc(100% - 32px));
+  background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+  padding: 10px 12px; display: flex; align-items: center; gap: 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+}
+#simbar .month { font-family: var(--f-display); font-size: 20px; color: var(--sky); min-width: 92px; line-height: 1; }
+#simbar .month small { display: block; font-family: var(--f-body); font-size: 10px; letter-spacing: 0.14em; color: var(--muted); margin-top: 3px; }
+#simbar .news { flex: 1; min-width: 0; font-size: 14px; line-height: 1.35; }
+#simbar .news i { display: inline-block; font-style: normal; font-size: 9px; font-weight: 800; letter-spacing: 0.12em; background: var(--star); color: #fff; padding: 2px 5px; border-radius: 3px; margin-right: 6px; vertical-align: 1px; }
+#simbar .news.in { animation: newsIn 0.4s ease; }
+@keyframes newsIn { from { opacity: 0; transform: translateY(6px); } }
+#simbar .prog { position: absolute; left: 12px; right: 12px; bottom: 4px; height: 2px; background: rgba(255,255,255,0.08); border-radius: 1px; overflow: hidden; }
+#simbar .prog i { display: block; height: 100%; width: 0; background: var(--sky); }
+.skip { border: 1px solid var(--line); background: var(--panel-2); border-radius: 8px; padding: 8px 10px; cursor: pointer; font-size: 12px; font-weight: 800; }
+
+/* report */
+.grade { display: flex; gap: 16px; align-items: center; margin: 6px 0 4px; }
+.grade .big { font-family: var(--f-display); font-size: 72px; line-height: 0.9; color: var(--sky); flex: none; width: 82px; text-align: center; }
+.grade .ttl { font-family: var(--f-display); font-size: 20px; line-height: 1.15; }
+.grade .ttl small { display: block; font-family: var(--f-body); font-size: 13px; color: var(--muted); margin-top: 4px; }
+.rgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 8px; }
+.rgrid div { background: var(--panel-2); border-radius: 10px; padding: 9px 10px; font-size: 12px; color: var(--muted); }
+.rgrid b { display: block; font-family: var(--f-mono); font-size: 17px; color: var(--ink); margin-top: 2px; }
+.cmp { width: 100%; border-collapse: collapse; font-size: 13px; }
+.cmp th, .cmp td { text-align: left; padding: 6px 4px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.cmp th { font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+.cmp td:nth-child(n+2) { font-family: var(--f-mono); white-space: nowrap; }
+.cmp .same { color: var(--good); }
+.tbl-wrap { overflow-x: auto; }
+.headlines { margin: 0; padding-left: 18px; font-size: 13px; line-height: 1.5; color: #cfdceb; }
+
+#toast {
+  position: absolute; z-index: 15; left: 50%; top: calc(var(--hud-h) + 12px); transform: translateX(-50%);
+  max-width: min(440px, calc(100% - 32px - var(--panel-w))); margin-left: calc(var(--panel-w) / -2);
+  background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px;
+  font-size: 14px; font-weight: 600; text-align: center; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+#toast.good { border-color: var(--good); }
+#toast.bad { border-color: var(--bad); }
+#flash { position: absolute; inset: 0; z-index: 1; background: #dfe9ff; opacity: 0; pointer-events: none; }
+
+#loading { position: absolute; inset: 0; z-index: 30; display: grid; place-items: center; background: var(--night); font-family: var(--f-display); color: var(--sky); font-size: 18px; letter-spacing: 0.06em; }
+@media (prefers-reduced-motion: reduce) {
+  .floater, .gap.bump, #simbar .news.in { animation-duration: 0.01s; }
+}
+</style>
+
+<div id="app">
+  <div id="sky"></div>
+  <canvas id="c" aria-label="Isometric 3D map of Chicago"></canvas>
+  <div id="flash"></div>
+  <div id="labels"></div>
+
+  <header id="hud">
+    <div class="hud-row">
+      <a class="brand" href="../" title="Back to the home page" style="color:inherit;text-decoration:none">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><polygon fill="#e8253a" points="12,1 14.75,7.24 21.53,6.5 17.5,12 21.53,17.5 14.75,16.76 12,23 9.25,16.76 2.47,17.5 6.5,12 2.47,6.5 9.25,7.24"/></svg>
+        <div><b>Gap City</b><small>Chicago · FY2027</small></div>
+      </a>
+      <div class="gap" id="gapBox" aria-live="polite">
+        <span id="gapLabel">2027 budget gap</span>
+        <strong id="gapVal">−$882.4M</strong>
+      </div>
+      <div class="hud-btns">
+        <button class="icon-btn" id="btnMusic" aria-pressed="true" aria-label="Music on or off" title="Music"><svg viewBox="0 0 24 24"><path d="M9 3v11.6A3.5 3.5 0 1 0 11 18V8h7V3z"/></svg></button>
+        <button class="icon-btn" id="btnSfx" aria-pressed="true" aria-label="Sound effects on or off" title="Sound effects"><svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9zm13.5 3a4.5 4.5 0 0 0-2.5-4v8a4.5 4.5 0 0 0 2.5-4zM14 3.2v2.1a7 7 0 0 1 0 13.4v2.1a9 9 0 0 0 0-17.6z"/></svg></button>
+        <button class="icon-btn opt" id="btnSources" aria-label="Sources and how the gap happened" title="Sources"><svg viewBox="0 0 24 24"><path d="M5 3h10l4 4v14H5zm9 1.5V8h3.5zM8 11v1.6h8V11zm0 3.2v1.6h8v-1.6zm0 3.2V19h5v-1.6z"/></svg></button>
+      </div>
+    </div>
+    <div class="meters" id="meters"></div>
+  </header>
+
+  <div id="mapctl">
+    <button class="icon-btn" id="rotL" aria-label="Rotate map left" title="Rotate (Q)"><svg viewBox="0 0 24 24"><path d="M7.1 8.5A7 7 0 1 1 5 13H3a9 9 0 1 0 2.6-6.4L3 4v7h7z"/></svg></button>
+    <button class="icon-btn" id="rotR" aria-label="Rotate map right" title="Rotate (E)"><svg viewBox="0 0 24 24"><path d="M16.9 8.5A7 7 0 1 0 19 13h2a9 9 0 1 1-2.6-6.4L21 4v7h-7z"/></svg></button>
+    <button class="icon-btn" id="zIn" aria-label="Zoom in" title="Zoom in"><svg viewBox="0 0 24 24"><path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6z"/></svg></button>
+    <button class="icon-btn" id="zOut" aria-label="Zoom out" title="Zoom out"><svg viewBox="0 0 24 24"><path d="M5 11h14v2H5z"/></svg></button>
+    <button class="icon-btn" id="btnNight" aria-pressed="false" aria-label="Toggle night" title="Day / night"><svg viewBox="0 0 24 24"><path d="M14.5 2.5A9.5 9.5 0 1 0 21.5 16 8 8 0 0 1 14.5 2.5z"/></svg></button>
+    <button class="icon-btn" id="btnLabels" aria-pressed="true" aria-label="Toggle landmark labels" title="Labels"><svg viewBox="0 0 24 24"><path d="M3 5h12l6 7-6 7H3zm4 6a1.5 1.5 0 1 0 0 .01z"/></svg></button>
+  </div>
+
+  <div id="info" hidden><button class="x" id="infoX" aria-label="Close">×</button><h4 id="infoT"></h4><p id="infoP"></p></div>
+
+  <aside id="panel" aria-label="Budget console">
+    <button class="sheet-handle" id="handle" aria-label="Expand or collapse budget console"><i></i></button>
+    <div class="p-head">
+      <div class="p-title">
+        <h2>Budget console</h2>
+        <div class="presets">
+          <button id="preReset" title="Start from the city forecast with no changes">Reset</button>
+          <button id="preMayor" title="Load the mayor’s Oct. 2026 proposal">Mayor’s plan</button>
+        </div>
+      </div>
+      <div class="tabs" role="tablist" id="tabs"></div>
+    </div>
+    <div class="levers" id="levers" role="tabpanel"></div>
+    <div class="p-foot">
+      <div class="need" id="need"></div>
+      <button class="cta" id="send">Send to Council</button>
+    </div>
+  </aside>
+
+  <div id="simbar" hidden>
+    <div class="month" id="simMonth">JAN<small>2027</small></div>
+    <div class="news" id="simNews"></div>
+    <button class="skip" id="simSkip">Skip ▸▸</button>
+    <div class="prog"><i id="simProg"></i></div>
+  </div>
+
+  <div id="toast" hidden></div>
+
+  <!-- intro -->
+  <div class="modal" id="intro">
+    <div class="card">
+      <div class="eyebrow"><svg viewBox="0 0 24 24" aria-hidden="true"><polygon fill="#e8253a" points="12,1 14.75,7.24 21.53,6.5 17.5,12 21.53,17.5 14.75,16.76 12,23 9.25,16.76 2.47,17.5 6.5,12 2.47,6.5 9.25,7.24"/></svg>A budget game built on real numbers</div>
+      <h1>GAP CITY<br><span class="r">$882.4M</span> to go</h1>
+      <p>You’re mayor of Chicago. The city’s FY2027 budget forecast, released Sept. 3, 2026, projects an <b>$882.4 million</b> shortfall. You have to close it, get 26 of 50 alderpeople to vote yes, and then live with the results for a year.</p>
+      <div class="flagstripe" aria-hidden="true"></div>
+      <h3>Where the gap comes from</h3>
+      <div class="gapbar" role="img" aria-label="Revenue drop of 375.9 million plus cost growth of 506.5 million equals 882.4 million">
+        <div class="rv">Revenue −$375.9M</div><div class="cs">Costs +$506.5M</div>
+      </div>
+      <div class="gapbar-legend"><span>One-time 2026 money runs out</span><span>Pensions, debt, settlements, raises, fuel</span></div>
+      <dl class="drivers">
+        <dt>Set aside for lawsuits and settlements in 2027</dt><dd>$401M</dd>
+        <dt>Required pension bill (up $90.5M)</dt><dd>$2.94B</dd>
+        <dt>Extra debt payments vs. 2026</dt><dd>+$70M</dd>
+        <dt>2026 debt-sale plan that never materialized</dt><dd>−$89.6M</dd>
+      </dl>
+      <h3>How to play</h3>
+      <div class="steps">
+        <div><b>1 · Pick</b>Flip revenue, cuts, borrowing and spending choices. Each one links to its source.</div>
+        <div><b>2 · Pass</b>Balance the budget, then send it to the City Council. You need 26 votes.</div>
+        <div><b>3 · Live it</b>Watch 2027 play out on the map and get a report card.</div>
+      </div>
+      <div class="row-end">
+        <span class="fine">Sound on. Drag to pan, pinch or scroll to zoom.</span>
+        <button class="cta" id="start">Start ▸</button>
+      </div>
+      <p class="fine">Sources: <a href="https://www.chicago.gov/city/en/depts/mayor/press_room/press_releases/2026/september/fy27-budget-forecast.html" target="_blank" rel="noopener">City of Chicago press release</a> and <a href="https://news.wttw.com/2026/09/03/chicago-faces-882m-budget-gap-2027-johnson-touts-smaller-expected-election-year" target="_blank" rel="noopener">WTTW News</a>, Sept. 3, 2026. The map is a stylized, compressed Chicago, not to scale.</p>
+    </div>
+  </div>
+
+  <!-- council vote -->
+  <div class="modal" id="council" hidden>
+    <div class="card">
+      <div class="eyebrow">City Council · Budget vote</div>
+      <h2>Roll call on your 2027 budget</h2>
+      <svg class="hemi" id="hemi" viewBox="0 0 420 230" role="img" aria-label="Council seats filling in as alderpeople vote"></svg>
+      <div class="tally"><span class="a">AYE <b id="ayeN">0</b></span><span>NEED 26</span><span class="n">NAY <b id="nayN">0</b></span></div>
+      <div class="verdict" id="verdict"></div>
+      <p class="foes" id="foes" hidden></p>
+      <div class="row-end" id="councilBtns"></div>
+    </div>
+  </div>
+
+  <!-- sources -->
+  <div class="modal" id="sources" hidden>
+    <div class="card">
+      <div class="eyebrow">Sources & method</div>
+      <h2>Where these numbers come from</h2>
+      <ul class="srclist" id="srcList"></ul>
+      <h3>How the game works</h3>
+      <p class="fine">Dollar amounts come from the sources above. Items tagged <span class="tag est">Game estimate</span> are derived by us from sourced figures, and each one explains the math. The effects on safety, services, affordability, business and fiscal health, the council vote counts and the year-in-review headlines are simplified game mechanics meant to start a discussion. They are not predictions. Simulated headlines are labeled as simulated.</p>
+      <p class="fine">The map compresses real geography: the Loop, river, lakefront and landmarks are placed by Chicago’s address grid, with stadiums pulled in closer and building heights exaggerated.</p>
+      <div class="row-end"><button class="cta alt" id="srcClose">Back to the city</button></div>
+    </div>
+  </div>
+
+  <!-- report -->
+  <div class="modal" id="report" hidden>
+    <div class="card" id="reportCard"></div>
+  </div>
+
+  <div id="loading">Building Chicago…</div>
+</div>
+
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"}}</script>
+<script type="module">
+import * as THREE from 'three';
+
+/* =====================================================================
+   DATA: sources, budget levers, meters
+   ===================================================================== */
+const SRC = {
+  pr: { t: 'City of Chicago: Mayor publishes 2027 Budget Forecast (Sept. 3, 2026)', u: 'https://www.chicago.gov/city/en/depts/mayor/press_room/press_releases/2026/september/fy27-budget-forecast.html' },
+  w0903: { t: 'WTTW: Chicago Faces $882M Budget Gap in 2027 (Sept. 3, 2026)', u: 'https://news.wttw.com/2026/09/03/chicago-faces-882m-budget-gap-2027-johnson-touts-smaller-expected-election-year' },
+  pdf: { t: 'FY2027 Budget Forecast, full document (PDF posted by WTTW)', u: 'https://news.wttw.com/sites/default/files/article/file-attachments/2027%20Chicago%20Budget%20Forecast.pdf' },
+  w1020: { t: 'WTTW: Johnson again proposes corporate tax hikes; says city must borrow $481M (Oct. 20, 2026)', u: 'https://news.wttw.com/2026/10/20/mayor-johnson-again-proposes-corporate-tax-hikes-bridge-budget-gap-says-city-must-borrow' },
+  w1028: { t: 'WTTW: Chicago Police Department overspent its budget by $520.5M, 2023–2025 (Oct. 28, 2026)', u: 'https://news.wttw.com/2026/10/28/chicago-police-department-overspent-its-budget-5205m-2023-2025-data' },
+  obm: { t: 'City of Chicago Office of Budget and Management: budget publications', u: 'https://www.chicago.gov/city/en/depts/obm/provdrs/budget/svcs/BudgetPublications.html' },
+};
+
+const START_GAP = 882.4;
+const BASE = { safety: 58, services: 56, affordability: 56, business: 64, fiscal: 42 };
+const BASE_VOTES = 32;
+const GAP_2028 = 943;
+
+const METERS = [
+  { k: 'safety', l: 'Safety', icon: 'M12 2l8 3v6c0 5-3.5 9-8 11-4.5-2-8-6-8-11V5z' },
+  { k: 'services', l: 'Services', icon: 'M5 7h14l-1.5 14h-11zM9 2.5h6v2H9zM3 4.5h18v2H3z' },
+  { k: 'affordability', l: 'Afford', icon: 'M3 11l9-8 9 8v10h-6v-6H9v6H3z' },
+  { k: 'business', l: 'Business', icon: 'M9 3h6v3h6v14H3V6h6zm2 1.6V6h2V4.6z' },
+  { k: 'fiscal', l: 'Fiscal', icon: 'M12 2l10 5v2H2V7zM4 10h3v8H4zm6.5 0h3v8h-3zM17 10h3v8h-3zM2 19h20v3H2z' },
+];
+const VOTE_ICON = 'M8 5a3 3 0 1 1 0 6 3 3 0 0 1 0-6zm8 0a3 3 0 1 1 0 6 3 3 0 0 1 0-6zM2 20c0-4 3-7 6-7s6 3 6 7zm12 0c0-2.5-.8-4.6-2-6 1-.7 2.4-1 4-1 3 0 6 3 6 7z';
+const CREDIT_ICON = 'M4 4h16v16H4zm3 3v2h10V7zm0 4v2h10v-2zm0 4v2h6v-2z';
+
+const OFF = { a: 0, fx: {}, v: 0 };
+const CATS = [
+  { k: 'rev', l: 'Revenue', note: 'New or higher taxes and fees. These recur every year, so they also shrink the 2028 gap.' },
+  { k: 'cut', l: 'Cuts', note: 'Spending cuts. They recur too, but residents feel them.' },
+  { k: 'once', l: 'One-time', note: 'Borrowing, surpluses and skipped payments. They help in 2027 only, and some make later years worse.' },
+  { k: 'inv', l: 'Invest', note: 'New spending from the mayor’s proposal. These widen the gap but raise your meters and win some votes.' },
+];
+
+const LEVERS = [
+  { id: 'pplt', cat: 'rev', name: 'Raise the “cloud tax”', sub: 'Personal property lease tax: 15% → 20%', toggle: true, rec: true, focus: 'aon',
+    opts: [OFF, { a: 234, fx: { business: -7, affordability: -1 }, v: -4 }],
+    why: 'This tax applies to leased equipment and cloud software, and the mayor calls it a tax on “big tech.” The rate was 9% in 2020. Under the proposal, vehicle rentals would stay at 15% and film-production leases would be taxed at 11%.',
+    src: ['w1020', 'pr'] },
+  { id: 'head', cat: 'rev', name: 'Corporate head tax', sub: '$25 a month per worker at firms with 125+ employees', toggle: true, rec: true, focus: 'willis',
+    opts: [OFF, { a: 100, fx: { business: -12 }, v: -12 }],
+    why: 'Projected to raise about $100M after exempting employees who work in federally designated “socioeconomically disadvantaged areas,” which include much of the South and West sides. A nearly veto-proof council majority rejected a head tax during the 2026 budget fight.',
+    src: ['w1020', 'w0903'] },
+  { id: 'bet', cat: 'rev', name: 'Tax online sports bets more', sub: 'Online wagering tax rate → 20%', toggle: true, rec: true, focus: 'soldier',
+    opts: [OFF, { a: 37, fx: { business: -1 }, v: -1 }],
+    why: 'The forecast credits online sports wagering revenue with helping shrink the projected gap. The proposal raises the tax to 20% to bring in about $37M.',
+    src: ['w1020', 'pr'] },
+  { id: 'cam', cat: 'rev', name: 'Bus and bike lane cameras', sub: 'Automated tickets for drivers who block lanes', toggle: true, rec: true, focus: 'michigan',
+    opts: [OFF, { a: 18, fx: { services: 2, affordability: -1 }, v: -2 }],
+    why: 'Expanding automated camera enforcement in bus and bike lanes would bring in about $18M, according to the proposal.',
+    src: ['w1020'] },
+  { id: 'prop', cat: 'rev', name: 'Raise property taxes', sub: 'Increase the city’s levy', rec: true, focus: 'bungalow',
+    opts: [{ l: 'None', a: 0, fx: {}, v: 0 }, { l: '+$100M', a: 100, fx: { affordability: -7, business: -2 }, v: -6 }, { l: '+$200M', a: 200, fx: { affordability: -14, business: -4 }, v: -13 }, { l: '+$300M', a: 300, fx: { affordability: -21, business: -6 }, v: -22 }],
+    why: 'In 2024 the City Council unanimously rejected the mayor’s $300M property tax increase. The mayor and all 50 alderpeople face voters in 2027, which makes any hike a hard sell.',
+    src: ['w0903'] },
+  { id: 'freeze', cat: 'cut', name: 'Keep 368 police jobs frozen', sub: 'Vacant sworn positions stay unfilled', toggle: true, rec: true, focus: 'cpd',
+    opts: [OFF, { a: 20.6, fx: { safety: -2 }, v: -1 }],
+    why: 'The proposed budget keeps 368 sworn positions frozen for a second year to save $20.6M. CPD has more than 1,500 vacant positions.',
+    src: ['w1028'] },
+  { id: 'cpd', cat: 'cut', name: 'Trim the police budget 5%', sub: 'Cut from the proposed $2.24B', toggle: true, rec: true, focus: 'cpd', est: true,
+    opts: [OFF, { a: 112, fx: { safety: -9 }, v: -7 }],
+    why: 'CPD is the city’s largest and best-funded department. It spent $520.5M more than its approved budgets from 2023 to 2025, and it had paid $226.8M in overtime through September 2026 against a $200M overtime budget. Our estimate: 5% of the proposed $2.24B is $112M.',
+    src: ['w1028', 'w0903'] },
+  { id: 'layoff', cat: 'cut', name: 'Lay off city workers', sub: 'Outside police and fire', rec: true, focus: 'cityhall', est: true,
+    opts: [{ l: 'None', a: 0, fx: {}, v: 0 }, { l: '500', a: 55, fx: { services: -7 }, v: -4 }, { l: '1,000', a: 110, fx: { services: -14, safety: -1 }, v: -9 }],
+    why: 'The mayor has said he would do everything possible to avoid layoffs or service cuts. Our estimate assumes about $110,000 per worker in salary and benefits.',
+    src: ['w0903'] },
+  { id: 'borrow', cat: 'once', name: 'Borrow to pay police misconduct settlements', sub: '$481M in bonds, $350M of it in 2027', toggle: true, rec: false, focus: 'cityhall', debt: 77,
+    opts: [OFF, { a: 229.9, fx: { fiscal: -16 }, v: -3 }],
+    why: 'Borrowing for settlements cut the gap the mayor’s team had to close from $882.4M to $652.5M. The city expects to pay $190M in interest on the $350M over seven years. Borrowing for operating costs could trigger a ratings downgrade. Our estimate of the yearly bill: ($350M + $190M) ÷ 7 ≈ $77M.',
+    src: ['w1020', 'w1028'] },
+  { id: 'tif', cat: 'once', name: 'Declare a bigger TIF surplus', sub: 'About $520M instead of $340M', toggle: true, rec: false, focus: 'cityhall', est: true,
+    opts: [OFF, { a: 40, fx: { services: 2, business: -2 }, v: 2 }],
+    why: 'Tax increment financing districts hold property tax money earmarked to fight blight. The September forecast assumed about $340M in surplus, with $75M returned to the city. The mayor later asked for about $520M, with about $286M going to Chicago Public Schools. Our estimate of the extra city share uses the forecast’s ratio.',
+    src: ['w0903', 'w1020'] },
+  { id: 'pension', cat: 'once', name: 'Extra pension payment', sub: 'Paid on top of the $2.94B the law requires', rec: false, focus: 'cbot',
+    opts: [{ l: 'Full $364M', a: 0, fx: {}, v: 0 }, { l: 'Half', a: 182, fx: { fiscal: -8 }, v: 1 }, { l: 'Skip it', a: 364, fx: { fiscal: -18 }, v: 2 }],
+    why: 'Chicago owes $36.4B to its four employee pension funds. The forecast budgets a $364M supplemental payment for 2027. In 2026, a council majority rejected the mayor’s plan to pay $120.8M more than required.',
+    src: ['pr', 'w0903', 'w1020'] },
+  { id: 'youth', cat: 'inv', name: '7,000 youth jobs', sub: 'Paid work for Chicago teens', toggle: true, rec: true, focus: 'grantpark',
+    opts: [OFF, { a: -24, fx: { safety: 4, services: 1, affordability: 1 }, v: 2 }],
+    why: 'The proposed budget includes $24M to add 7,000 youth jobs, a 2023 campaign promise.',
+    src: ['w1020'] },
+  { id: 'lib', cat: 'inv', name: 'More money for libraries', sub: 'Chicago Public Library', toggle: true, rec: true, focus: 'library',
+    opts: [OFF, { a: -30.9, fx: { services: 5 }, v: 1 }],
+    why: 'The proposal earmarks an additional $30.9M for Chicago’s libraries.',
+    src: ['w1020'] },
+  { id: 'care', cat: 'inv', name: 'Expand early childcare', sub: 'Grow an early-childhood program', toggle: true, rec: true, focus: 'north',
+    opts: [OFF, { a: -7, fx: { affordability: 3 }, v: 1 }],
+    why: 'The proposal includes $7M to expand an early childcare program.',
+    src: ['w1020'] },
+  { id: 'other', cat: 'inv', name: 'Rest of the mayor’s new spending', sub: 'Including reopening a mental health clinic', toggle: true, rec: true, focus: 'clinic',
+    opts: [OFF, { a: -69.6, fx: { safety: 2, services: 3 }, v: 1 }],
+    why: 'The proposal includes $131.5M in new spending, including money to reopen another mental health clinic closed under a former mayor. This item is what remains after youth jobs, libraries and childcare: $131.5M − $24M − $30.9M − $7M = $69.6M.',
+    src: ['w1020'] },
+];
+const LV = Object.fromEntries(LEVERS.map(l => [l.id, l]));
+const MAYOR_PLAN = { pplt: 1, head: 1, bet: 1, cam: 1, prop: 0, freeze: 1, cpd: 0, layoff: 0, borrow: 1, tif: 1, pension: 0, youth: 1, lib: 1, care: 1, other: 1 };
+
+/* =====================================================================
+   STATE + MODEL
+   ===================================================================== */
+const state = { choice: Object.fromEntries(LEVERS.map(l => [l.id, 0])), tab: 'rev', phase: 'intro', balancedOnce: false, events: [], simFx: {} };
+
+function compute(choice = state.choice, extraFx = {}) {
+  let closed = 0, rec = 0, votes = BASE_VOTES, debt = 0;
+  const m = { ...BASE };
+  for (const l of LEVERS) {
+    const o = l.opts[choice[l.id]];
+    closed += o.a;
+    if (l.rec) rec += o.a;
+    votes += o.v;
+    if (l.debt && choice[l.id]) debt += l.debt;
+    for (const k in o.fx) m[k] += o.fx[k];
+  }
+  m.fiscal += Math.max(0, rec) * 0.02;
+  for (const k in extraFx) m[k] = (m[k] ?? 0) + extraFx[k];
+  for (const k in m) m[k] = Math.max(0, Math.min(100, Math.round(m[k])));
+  const gap = +(START_GAP - closed).toFixed(1);
+  const gap28 = Math.round(GAP_2028 - rec + debt);
+  return { gap, closed, rec, votes, debt, m, gap28 };
+}
+function credit(f) {
+  if (f >= 62) return { l: 'Upgrade watch', c: 'good' };
+  if (f >= 48) return { l: 'Stable', c: 'good' };
+  if (f >= 34) return { l: 'Negative', c: 'warn' };
+  if (f >= 22) return { l: 'Downgrade', c: 'bad' };
+  return { l: 'Junk risk', c: 'bad' };
+}
+const fmtM = v => { const a = Math.abs(v); return '$' + (a >= 1000 ? (a / 1000).toFixed(2) + 'B' : (Math.round(a * 10) / 10).toString() + 'M'); };
+const sgnM = v => (v > 0 ? '+' : v < 0 ? '−' : '') + fmtM(v);
+
+/* =====================================================================
+   AUDIO: synthesized SFX + chiptune Chicago blues
+   ===================================================================== */
+const A = {
+  ctx: null, musicOn: true, sfxOn: true,
+  init() {
+    if (this.ctx) { this.ctx.resume(); return; }
+    const C = window.AudioContext || window.webkitAudioContext;
+    if (!C) return;
+    const c = this.ctx = new C();
+    this.master = c.createGain(); this.master.gain.value = 0.9;
+    const comp = c.createDynamicsCompressor(); comp.threshold.value = -14; comp.ratio.value = 4;
+    this.master.connect(comp); comp.connect(c.destination);
+    this.music = c.createGain(); this.music.gain.value = 0.26; this.music.connect(this.master);
+    this.sfx = c.createGain(); this.sfx.gain.value = 0.7; this.sfx.connect(this.master);
+    const len = c.sampleRate * 3; const buf = c.createBuffer(1, len, c.sampleRate); const d = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+    this.nbuf = buf;
+    // city hum
+    const hum = c.createBufferSource(); hum.buffer = buf; hum.loop = true;
+    const hf = c.createBiquadFilter(); hf.type = 'lowpass'; hf.frequency.value = 320;
+    this.humG = c.createGain(); this.humG.gain.value = 0.05;
+    hum.connect(hf); hf.connect(this.humG); this.humG.connect(this.sfx); hum.start();
+  },
+  tone(f, d, o = {}) {
+    const c = this.ctx; if (!c) return;
+    const t = o.t ?? c.currentTime;
+    const osc = c.createOscillator(); osc.type = o.type || 'square';
+    osc.frequency.setValueAtTime(f, t);
+    if (o.slide) osc.frequency.exponentialRampToValueAtTime(o.slide, t + d);
+    const g = c.createGain(); const v = o.v ?? 0.18;
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(v, t + (o.a || 0.006));
+    g.gain.exponentialRampToValueAtTime(0.0001, t + d);
+    osc.connect(g); g.connect(o.dest || this.sfx);
+    osc.start(t); osc.stop(t + d + 0.03);
+    if (o.vib) { const l = c.createOscillator(), lg = c.createGain(); l.frequency.value = o.vib; lg.gain.value = f * 0.025; l.connect(lg); lg.connect(osc.frequency); l.start(t); l.stop(t + d); }
+  },
+  noise(d, o = {}) {
+    const c = this.ctx; if (!c) return;
+    const t = o.t ?? c.currentTime;
+    const s = c.createBufferSource(); s.buffer = this.nbuf;
+    const f = c.createBiquadFilter(); f.type = o.ft || 'highpass'; f.frequency.setValueAtTime(o.f || 1000, t);
+    if (o.f2) f.frequency.exponentialRampToValueAtTime(o.f2, t + d);
+    f.Q.value = o.q || 0.7;
+    const g = c.createGain(); const v = o.v ?? 0.2;
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(v, t + (o.a || 0.004));
+    g.gain.exponentialRampToValueAtTime(0.0001, t + d);
+    s.connect(f); f.connect(g); g.connect(o.dest || this.sfx);
+    s.start(t, Math.random() * 0.4); s.stop(t + d + 0.03);
+  },
+  play(name) {
+    if (!this.ctx || !this.sfxOn) return;
+    const t = this.ctx.currentTime;
+    const T = (f, d, o = {}) => this.tone(f, d, { ...o, t: t + (o.at || 0) });
+    const N = (d, o = {}) => this.noise(d, { ...o, t: t + (o.at || 0) });
+    switch (name) {
+      case 'click': T(1320, 0.04, { v: 0.08 }); break;
+      case 'coin': T(988, 0.08, { v: 0.14 }); T(1319, 0.35, { at: 0.08, v: 0.14 }); N(0.12, { f: 7000, v: 0.05, at: 0.08 }); break;
+      case 'cash': T(988, 0.07, { v: 0.13 }); T(1319, 0.3, { at: 0.07, v: 0.13 }); T(1976, 0.25, { at: 0.12, v: 0.06, type: 'triangle' }); N(0.18, { f: 6000, v: 0.08, at: 0.06 }); break;
+      case 'chop': T(320, 0.18, { slide: 70, type: 'sawtooth', v: 0.16 }); N(0.12, { ft: 'lowpass', f: 900, v: 0.25 }); break;
+      case 'whoosh': N(0.45, { ft: 'bandpass', f: 300, f2: 2600, q: 2, v: 0.3, a: 0.15 }); T(196, 0.18, { at: 0.3, type: 'triangle', v: 0.16 }); T(147, 0.35, { at: 0.48, type: 'triangle', v: 0.16 }); break;
+      case 'sparkle': [1047, 1319, 1568, 2093, 2637].forEach((f, i) => T(f, 0.12, { at: i * 0.05, v: 0.08, type: 'triangle' })); break;
+      case 'undo': T(700, 0.09, { slide: 420, v: 0.08 }); break;
+      case 'error': T(110, 0.25, { v: 0.12 }); T(117, 0.25, { v: 0.12 }); break;
+      case 'aye': T(1046 + Math.random() * 60, 0.05, { v: 0.07 }); break;
+      case 'nay': T(196, 0.08, { v: 0.09 }); break;
+      case 'gavel': N(0.07, { ft: 'lowpass', f: 2200, v: 0.5 }); T(140, 0.16, { slide: 55, type: 'sine', v: 0.5 }); break;
+      case 'fanfare': [523, 659, 784].forEach((f, i) => T(f, 0.14, { at: i * 0.12, v: 0.14 })); [523, 659, 784, 1047].forEach(f => T(f, 0.9, { at: 0.38, v: 0.08 })); T(1047, 0.9, { at: 0.38, v: 0.1, type: 'triangle', vib: 6 }); break;
+      case 'fail': [392, 370, 349].forEach((f, i) => T(f, 0.34, { at: i * 0.36, type: 'sawtooth', v: 0.1 })); T(330, 1.1, { at: 1.08, type: 'sawtooth', v: 0.1, vib: 5 }); break;
+      case 'pop': N(0.6, { ft: 'lowpass', f: 1800, f2: 300, v: 0.35 }); for (let i = 0; i < 6; i++) N(0.04, { f: 5000, v: 0.06, at: 0.25 + Math.random() * 0.4 }); break;
+      case 'launch': N(0.5, { ft: 'bandpass', f: 600, f2: 3000, q: 4, v: 0.08, a: 0.3 }); break;
+      case 'thunder': N(2.2, { ft: 'lowpass', f: 260, v: 0.5, a: 0.05 }); N(0.3, { ft: 'lowpass', f: 1200, v: 0.25 }); break;
+      case 'ding': T(1175, 0.5, { type: 'sine', v: 0.06 }); T(880, 0.8, { at: 0.3, type: 'sine', v: 0.06 }); break;
+      case 'tick': T(1600, 0.03, { v: 0.05 }); break;
+      case 'month': T(784, 0.06, { v: 0.07 }); T(1175, 0.12, { at: 0.07, v: 0.07 }); break;
+      case 'warn': T(880, 0.08, { v: 0.08 }); T(660, 0.12, { at: 0.1, v: 0.08 }); break;
+      case 'start': [392, 523, 659, 784, 1047].forEach((f, i) => T(f, 0.1, { at: i * 0.07, v: 0.1 })); break;
+    }
+  },
+};
+
+const BLUES = [0, 0, 0, 0, 5, 5, 0, 0, 7, 5, 0, 7];
+const BOOGIE = [0, 4, 7, 9, 10, 9, 7, 4];
+const PENTA = [0, 3, 5, 6, 7, 10, 12, 15];
+const mtof = m => 440 * Math.pow(2, (m - 69) / 12);
+const Music = {
+  playing: false, step: 0, next: 0, tempo: 112, hot: false, riff: [],
+  start() {
+    if (!A.ctx || this.playing) return;
+    this.playing = true; this.step = 0; this.next = A.ctx.currentTime + 0.1; this.makeRiff(0);
+    this.timer = setInterval(() => this.tick(), 25);
+  },
+  stop() { clearInterval(this.timer); this.playing = false; },
+  makeRiff(seed) {
+    let s = seed * 9301 + 49297; const r = () => ((s = (s * 9301 + 49297) % 233280) / 233280);
+    this.riff = []; let idx = 4;
+    for (let i = 0; i < 96; i++) {
+      const bar = Math.floor(i / 8), pos = i % 8;
+      const callBar = bar % 2 === 0;
+      const p = callBar ? [0.9, 0.2, 0.7, 0.5, 0.8, 0.1, 0.4, 0.2][pos] : [0.3, 0, 0.5, 0, 0.6, 0, 0, 0][pos];
+      if (r() < p) { idx = Math.max(0, Math.min(PENTA.length - 1, idx + Math.round((r() - 0.5) * 3))); this.riff.push(PENTA[idx]); }
+      else this.riff.push(null);
+    }
+  },
+  tick() {
+    const c = A.ctx;
+    if (this.next < c.currentTime - 0.25) this.next = c.currentTime + 0.05;
+    while (this.next < c.currentTime + 0.15) {
+      this.note(this.step, this.next);
+      const beat = 60 / this.tempo;
+      this.next += (this.step % 2 === 0) ? beat * 0.6 : beat * 0.4;
+      this.step++;
+      if (this.step % 96 === 0) this.makeRiff(this.step / 96);
+    }
+  },
+  note(s, t) {
+    if (!A.musicOn) return;
+    const bar = Math.floor(s / 8) % 12, i = s % 8, root = BLUES[bar];
+    const D = A.music, beat = 60 / this.tempo;
+    A.tone(mtof(40 + root + BOOGIE[i]), beat * 0.42, { t, type: 'triangle', v: 0.5, dest: D });
+    if (i === 2 || i === 6) [0, 4, 10].forEach(n => A.tone(mtof(52 + root + n), 0.09, { t, v: 0.06, dest: D }));
+    if (i === 3 || i === 7) [0, 4, 10].forEach(n => A.tone(mtof(52 + root + n), 0.05, { t, v: 0.035, dest: D }));
+    if (i === 0 || i === 4) A.tone(150, 0.12, { t, type: 'sine', slide: 45, v: 0.55, dest: D });
+    if (i === 2 || i === 6) A.noise(0.1, { t, ft: 'bandpass', f: 1800, v: 0.18, dest: D });
+    A.noise(0.03, { t, f: 8000, v: i % 2 ? 0.05 : 0.09, dest: D });
+    const chorus = Math.floor(s / 96);
+    if (this.hot || chorus % 2 === 1) {
+      const n = this.riff[s % 96];
+      if (n !== null && n !== undefined) A.tone(mtof(64 + n + (this.hot ? 12 : 0)), beat * 0.38, { t, v: this.hot ? 0.07 : 0.05, dest: D });
+    }
+  },
+};
+
+/* =====================================================================
+   THREE.JS SCENE
+   ===================================================================== */
+const canvas = document.getElementById('c');
+const isPhone = matchMedia('(pointer: coarse)').matches || innerWidth < 700;
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: !isPhone, alpha: true, powerPreference: 'high-performance' });
+renderer.setPixelRatio(Math.min(devicePixelRatio, isPhone ? 1.75 : 2));
+renderer.setClearColor(0x000000, 0);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.shadowMap.autoUpdate = false;
+
+const scene = new THREE.Scene();
+const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 1500);
+const VIEW = 22;
+const U = { uTime: { value: 0 }, uNight: { value: 0 }, uLit: { value: 0.6 }, uSnow: { value: 0 } };
+
+const hemi = new THREE.HemisphereLight(0xdcecff, 0x6b5e48, 1.25);
+const sun = new THREE.DirectionalLight(0xfff0d8, 2.4);
+sun.castShadow = true;
+const SM = isPhone ? 1024 : 2048;
+sun.shadow.mapSize.set(SM, SM);
+sun.shadow.bias = -0.0006; sun.shadow.normalBias = 0.015;
+scene.add(hemi, sun, sun.target);
+
+// deterministic RNG (seeded with the year of the Great Chicago Fire)
+function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+const rnd = mulberry32(1871);
+const R = (a, b) => a + (b - a) * rnd();
+const pick = arr => arr[Math.floor(rnd() * arr.length)];
+
+/* ---------- shader injection: procedural windows + snow ---------- */
+function injectWorld(sh) {
+  sh.vertexShader = sh.vertexShader
+    .replace('#include <common>', '#include <common>\nvarying vec3 vWP; varying vec3 vWN;')
+    .replace('#include <begin_vertex>', `#include <begin_vertex>
+      vec4 wp_ = vec4(transformed, 1.0);
+      vec3 wn_ = objectNormal;
+      #ifdef USE_INSTANCING
+        wp_ = instanceMatrix * wp_;
+        wn_ = mat3(instanceMatrix) * wn_;
+      #endif
+      vWP = (modelMatrix * wp_).xyz;
+      vWN = normalize(mat3(modelMatrix) * wn_);`);
+  sh.fragmentShader = sh.fragmentShader.replace('#include <common>', `#include <common>
+    varying vec3 vWP; varying vec3 vWN;
+    uniform float uNight; uniform float uLit; uniform float uSnow; uniform float uTime;
+    float hh(vec2 p){ p = mod(p, 289.0); return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }`);
+  Object.assign(sh.uniforms, U);
+}
+const matCache = new Map();
+function winMat(color, o = {}) {
+  const wx = o.wx ?? 9, wy = o.wy ?? 11, glass = o.glass ?? 0.35, lit = o.lit ?? 1, minY = o.minY ?? 0.16;
+  const key = [color, wx, wy, glass, lit, minY].join('|');
+  if (matCache.has(key)) return matCache.get(key);
+  const m = new THREE.MeshLambertMaterial({ color });
+  m.onBeforeCompile = sh => {
+    injectWorld(sh);
+    sh.fragmentShader = sh.fragmentShader.replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+      {
+        float side = 1.0 - step(0.5, abs(vWN.y));
+        vec2 wuv = abs(vWN.x) > 0.5 ? vec2(vWP.z, vWP.y) : vec2(vWP.x, vWP.y);
+        vec2 g = wuv * vec2(${wx.toFixed(2)}, ${wy.toFixed(2)});
+        vec2 f = fract(g); vec2 id = floor(g);
+        float win = step(0.22, f.x) * step(f.x, 0.78) * step(0.3, f.y) * step(f.y, 0.82) * side * step(${minY.toFixed(3)}, vWP.y);
+        float h = hh(id + floor(vWP.xz * 2.3) * 7.13 + vWN.xz * 3.1);
+        diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * ${(1 - glass).toFixed(2)} + vec3(0.04, 0.06, 0.1) * ${glass.toFixed(2)}, win);
+        float lit = win * step(h, uLit * ${lit.toFixed(2)});
+        totalEmissiveRadiance += lit * uNight * vec3(1.0, 0.78, 0.45) * (0.65 + 0.6 * hh(id * 1.37 + 3.0));
+        float roof = step(0.6, vWN.y);
+        diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.94, 0.96, 1.0), roof * uSnow * 0.9);
+      }`);
+  };
+  m.customProgramCacheKey = () => 'win' + key;
+  matCache.set(key, m);
+  return m;
+}
+function plainMat(color, o = {}) {
+  const key = 'p|' + color + (o.snow ? 's' : '') + (o.emissive || '');
+  if (matCache.has(key)) return matCache.get(key);
+  const m = new THREE.MeshLambertMaterial({ color, emissive: o.emissive || 0x000000 });
+  if (o.snow) {
+    m.onBeforeCompile = sh => {
+      injectWorld(sh);
+      sh.fragmentShader = sh.fragmentShader.replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+        diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.94, 0.96, 1.0), step(0.6, vWN.y) * uSnow * 0.85);`);
+    };
+    m.customProgramCacheKey = () => key;
+  }
+  matCache.set(key, m);
+  return m;
+}
+
+/* ---------- geography (x = east, z = south; 1 unit = 100 address numbers, ~200 m) ---------- */
+const G = 0.1; // ground top
+// shoreline as [z, x], north to south
+const SHORE = [[-130, -40], [-46, -6.5], [-40, -4.6], [-36, -3.4], [-30, -2.2], [-24, -1.0], [-20, -0.2], [-16, 0.9], [-13, 1.6], [-11, 2.1], [-10, 2.6], [-9.4, 3.6], [-8.6, 4.6], [-7.6, 5.4], [-6.6, 6.5], [-5.9, 6.7], [-4.3, 6.7], [-3.5, 6.2], [-2.7, 5.9], [-1.2, 5.6], [0.5, 5.25], [11.0, 5.25], [11.6, 7.4], [12.1, 8.6], [12.8, 9.7], [13.5, 9.5], [14.1, 7.6], [15.2, 6.5], [17, 6.1], [21, 6.0], [24.5, 6.1], [30, 5.3], [36, 5.5], [42, 6.3], [130, 40]];
+function shoreX(z) {
+  for (let i = 0; i < SHORE.length - 1; i++) {
+    const [z0, x0] = SHORE[i], [z1, x1] = SHORE[i + 1];
+    if (z >= z0 && z <= z1) return x0 + (x1 - x0) * ((z - z0) / (z1 - z0));
+  }
+  return 0;
+}
+const RIV_MAIN = [[-3.7, -3.25], [-2.5, -3.2], [-1, -3.15], [0.5, -3.1], [2, -3.05], [3.5, -3.0], [5, -2.98], [6.6, -2.95]];
+const RIV_N = [[-3.7, -3.25], [-3.75, -4.6], [-4.1, -5.8], [-4.9, -7.4], [-5.9, -9.4], [-6.6, -11.5], [-7.6, -14], [-8.8, -17], [-10.4, -21], [-12, -25], [-14, -30], [-16.5, -36], [-19, -42], [-26, -52]];
+const RIV_S = [[-3.7, -3.25], [-3.75, 0], [-3.8, 4], [-3.85, 8], [-3.7, 11.5], [-4.3, 14], [-5.3, 16.5], [-6.3, 19], [-7.4, 21.2], [-9, 22.6], [-12, 23.6], [-16, 25.2], [-20, 27], [-26, 30], [-44, 38]];
+const RIVERS = [RIV_MAIN, RIV_N, RIV_S];
+const EXPWY = {
+  ike: [[-3.95, 4.9], [-7, 4.9], [-14, 4.9], [-24, 4.9], [-46, 4.9]],
+  kennedy: [[-7, 4.9], [-7, 0], [-7, -5], [-8, -8], [-11, -12], [-14.5, -16], [-18, -21], [-22, -27], [-28, -34], [-44, -48]],
+  ryan: [[-7, 4.9], [-6.9, 9], [-5.8, 12.5], [-4.9, 16], [-4.6, 20], [-4.6, 26], [-4.6, 36], [-4.6, 60]],
+  stevenson: [[-4.6, 24.5], [-8, 25.6], [-14, 27.5], [-24, 31], [-44, 38]],
+};
+function lsdX(z) { if (z > 11.2 && z < 16.8) return 3.55; if (z > -9.6 && z < -3.2) return Math.min(shoreX(z) - 0.9, 5.4); return shoreX(z) - 0.5; }
+const LSD = []; for (let z = -46; z <= 40; z += 0.5) LSD.push([lsdX(z), z]);
+
+function distSeg(px, pz, ax, az, bx, bz) {
+  const dx = bx - ax, dz = bz - az; const l2 = dx * dx + dz * dz;
+  let t = l2 ? ((px - ax) * dx + (pz - az) * dz) / l2 : 0; t = Math.max(0, Math.min(1, t));
+  const qx = ax + t * dx - px, qz = az + t * dz - pz; return Math.sqrt(qx * qx + qz * qz);
+}
+function distPoly(px, pz, p) { let d = 1e9; for (let i = 0; i < p.length - 1; i++) d = Math.min(d, distSeg(px, pz, p[i][0], p[i][1], p[i + 1][0], p[i + 1][1])); return d; }
+
+// parks
+const PARKS = [
+  { kind: 'rect', x0: 1.25, x1: 99, z0: -1.75, z1: 11.2 },              // Millennium + Maggie Daley + Grant Park
+  { kind: 'strip', z0: -46, z1: -10.6, w: 2.6 },                          // Lincoln Park
+  { kind: 'strip', z0: 16.8, z1: 40, w: 1.2 },                            // Burnham Park
+  { kind: 'rect', x0: 3.0, x1: 99, z0: 11.2, z1: 16.8 },                  // Museum Campus
+  { kind: 'rect', x0: -16.3, x1: -15.2, z0: -0.9, z1: 0.1 },              // Union Park
+];
+function inPark(x, z) {
+  for (const p of PARKS) {
+    if (p.kind === 'rect' && x > p.x0 && x < Math.min(p.x1, shoreX(z)) && z > p.z0 && z < p.z1) return true;
+    if (p.kind === 'strip' && z > p.z0 && z < p.z1 && x > shoreX(z) - p.w) return true;
+  }
+  return false;
+}
+const isLand = (x, z, m = 0) => x < shoreX(z) - m;
+
+/* ---------- materials ---------- */
+const waterMat = new THREE.MeshLambertMaterial({ color: 0x2f7aa3 });
+waterMat.onBeforeCompile = sh => {
+  injectWorld(sh);
+  sh.fragmentShader = sh.fragmentShader.replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+    float w1 = sin(vWP.x * 2.3 + uTime * 0.9) * sin(vWP.z * 2.9 - uTime * 0.7);
+    float w2 = sin((vWP.x + vWP.z) * 5.1 - uTime * 1.6);
+    diffuseColor.rgb *= 0.93 + 0.05 * w1 + 0.03 * w2;
+    float spark = step(0.985, hh(floor(vWP.xz * 6.0) + floor(uTime * 2.0))) * (1.0 - uNight);
+    diffuseColor.rgb += spark * 0.25;
+    diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.82, 0.88, 0.94), uSnow * 0.25 * step(vWP.x, 7.0));`);
+};
+const riverMat = waterMat.clone(); riverMat.color.set(0x3a7f76); riverMat.onBeforeCompile = waterMat.onBeforeCompile;
+riverMat.polygonOffset = true; riverMat.polygonOffsetFactor = -2; riverMat.polygonOffsetUnits = -2;
+const RIVER_BASE = new THREE.Color(0x3a7f76), RIVER_GREEN = new THREE.Color(0x19c25a);
+
+const landMat = new THREE.MeshLambertMaterial({ color: 0xffffff });
+landMat.onBeforeCompile = sh => {
+  injectWorld(sh);
+  sh.fragmentShader = sh.fragmentShader.replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+    if (vWN.y > 0.5) {
+      vec2 p = vWP.xz;
+      float dist = length((p - vec2(-0.8, 0.6)) * vec2(1.0, 0.85));
+      float down = 1.0 - smoothstep(5.5, 12.0, dist);
+      vec3 lawn = vec3(0.50, 0.58, 0.40);
+      vec3 conc = vec3(0.72, 0.70, 0.64);
+      vec3 base = mix(lawn, conc, down);
+      vec2 d1 = abs(fract(p) - 0.5);
+      float st = smoothstep(0.40, 0.425, max(d1.x, d1.y));
+      vec2 d4 = abs(fract(p / 4.0) - 0.5) * 4.0;
+      float art = smoothstep(1.85, 1.88, max(d4.x, d4.y));
+      vec3 asphalt = vec3(0.33, 0.34, 0.37);
+      base = mix(base, asphalt, max(st * 0.9, art));
+      float dash = step(0.5, fract((p.x + p.y) * 2.0));
+      base = mix(base, vec3(0.92, 0.80, 0.35), art * step(1.975, max(d4.x, d4.y)) * dash * 0.7);
+      float far = smoothstep(30.0, 60.0, length(p));
+      base = mix(base, vec3(0.47, 0.55, 0.39), far * 0.7);
+      base = mix(base, vec3(0.93, 0.95, 1.0), uSnow * (0.88 - st * 0.35));
+      diffuseColor.rgb = base;
+      totalEmissiveRadiance += uNight * art * vec3(0.20, 0.14, 0.05) * (1.0 - far);
+    } else {
+      diffuseColor.rgb = vec3(0.55, 0.53, 0.50);
+    }`);
+};
+const parkMat = new THREE.MeshLambertMaterial({ color: 0x5e9a46, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 });
+const PARK_C = new THREE.Color(0x5e9a46), SNOW_C = new THREE.Color(0xeef3f8);
+const roadMat = new THREE.MeshLambertMaterial({ color: 0x3a3c42, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 });
+const roadEdgeMat = new THREE.MeshLambertMaterial({ color: 0xb8b2a2, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
+
+/* ---------- ground: lake, land, rivers, parks, roads ---------- */
+const water = new THREE.Mesh(new THREE.PlaneGeometry(900, 900), waterMat);
+water.rotation.x = -Math.PI / 2; water.receiveShadow = true; scene.add(water);
+
+function landShape(points) { const s = new THREE.Shape(); points.forEach(([x, z], i) => i ? s.lineTo(x, -z) : s.moveTo(x, -z)); return s; }
+function extrudeFlat(shape, depth, mat) {
+  const g = new THREE.ExtrudeGeometry(shape, { depth, bevelEnabled: false, curveSegments: 24 });
+  const m = new THREE.Mesh(g, mat); m.rotation.x = -Math.PI / 2; m.receiveShadow = true; scene.add(m); return m;
+}
+{
+  const pts = SHORE.map(([z, x]) => [x, z]);
+  pts.push([-200, 130], [-200, -130]);
+  extrudeFlat(landShape(pts), G, landMat);
+  // Northerly Island
+  const ni = extrudeFlat(landShape([[8.2, 13.6], [9.7, 13.4], [9.9, 15], [9.6, 20.4], [8.9, 21.1], [8.3, 20.6], [8.2, 16]]), G, landMat);
+  ni.userData.island = true;
+}
+
+function ribbon(pts, w, y, mat, opts = {}) {
+  const pos = [], idx = [];
+  for (let i = 0; i < pts.length; i++) {
+    const p = pts[i], a = pts[Math.max(0, i - 1)], b = pts[Math.min(pts.length - 1, i + 1)];
+    let dx = b[0] - a[0], dz = b[1] - a[1]; const l = Math.hypot(dx, dz) || 1; dx /= l; dz /= l;
+    const nx = -dz * w / 2, nz = dx * w / 2;
+    pos.push(p[0] + nx, y, p[1] + nz, p[0] - nx, y, p[1] - nz);
+    if (i) { const k = i * 2; idx.push(k - 2, k, k - 1, k - 1, k, k + 1); }
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setIndex(idx); g.computeVertexNormals();
+  const n = g.attributes.normal; for (let i = 0; i < n.count; i++) n.setXYZ(i, 0, 1, 0);
+  const m = new THREE.Mesh(g, mat); m.receiveShadow = true; scene.add(m); return m;
+}
+RIVERS.forEach((r, i) => ribbon(r, i === 0 ? 0.4 : 0.34, G + 0.004, riverMat));
+
+// parks
+function parkPolys() {
+  const polys = [];
+  for (const p of PARKS) {
+    if (p.kind === 'rect') {
+      const pts = [];
+      for (let z = p.z0; z <= p.z1 + 1e-6; z += 0.25) pts.push([Math.min(p.x1, shoreX(z)), z]);
+      for (let z = p.z1; z >= p.z0 - 1e-6; z -= 0.25) pts.push([p.x0, z]);
+      polys.push(pts);
+    } else {
+      const pts = [];
+      for (let z = p.z0; z <= p.z1 + 1e-6; z += 0.5) pts.push([shoreX(z), z]);
+      for (let z = p.z1; z >= p.z0 - 1e-6; z -= 0.5) pts.push([shoreX(z) - p.w, z]);
+      polys.push(pts);
+    }
+  }
+  polys.push([[8.25, 13.65], [9.65, 13.45], [9.85, 15], [9.55, 20.3], [8.9, 21.0], [8.35, 20.5], [8.25, 16]]);
+  return polys;
+}
+for (const poly of parkPolys()) {
+  const g = new THREE.ShapeGeometry(landShape(poly));
+  const m = new THREE.Mesh(g, parkMat); m.rotation.x = -Math.PI / 2; m.position.y = G + 0.002; m.receiveShadow = true; scene.add(m);
+}
+// park paths in Grant Park
+ribbon([[1.3, 5.0], [5.0, 5.0]], 0.08, G + 0.006, roadEdgeMat);
+ribbon([[3.6, -1.7], [3.6, 11]], 0.06, G + 0.006, roadEdgeMat);
+// expressways and Lake Shore Drive
+for (const k in EXPWY) { ribbon(EXPWY[k], 0.4, G + 0.012, roadEdgeMat); ribbon(EXPWY[k], 0.32, G + 0.016, roadMat); }
+ribbon(LSD, 0.36, G + 0.012, roadEdgeMat); ribbon(LSD, 0.28, G + 0.016, roadMat);
+// red bus lane on Michigan Ave (shown when cameras are on)
+const busLane = ribbon([[1.0, -9.5], [1.0, 12]], 0.12, G + 0.02, new THREE.MeshLambertMaterial({ color: 0xc23a3a, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 }));
+busLane.visible = false;
+
+/* ---------- landmarks ---------- */
+const LANDMARKS = {};
+const pickables = [];
+function addMesh(geo, mat, x, y, z, parent, o = {}) {
+  const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z);
+  if (o.rotY) m.rotation.y = o.rotY;
+  m.castShadow = o.cast !== false; m.receiveShadow = true; parent.add(m); return m;
+}
+function bx(parent, w, h, d, mat, x, z, y = 0, rotY = 0) { const g = new THREE.BoxGeometry(w, h, d); g.translate(0, h / 2, 0); return addMesh(g, mat, x, y, z, parent, { rotY }); }
+function cyl(parent, rt, rb, h, seg, mat, x, z, y = 0) { const g = new THREE.CylinderGeometry(rt, rb, h, seg); g.translate(0, h / 2, 0); return addMesh(g, mat, x, y, z, parent); }
+function taperBox(w, h, d, ts) { const g = new THREE.BoxGeometry(w, h, d); g.translate(0, h / 2, 0); const p = g.attributes.position; for (let i = 0; i < p.count; i++) if (p.getY(i) > h * 0.5) { p.setX(i, p.getX(i) * ts); p.setZ(i, p.getZ(i) * ts); } g.computeVertexNormals(); return g; }
+function ellipseGeo(rx, rz, h, irx = 0, irz = 0) {
+  const s = new THREE.Shape(); s.absellipse(0, 0, rx, rz, 0, Math.PI * 2, false);
+  if (irx) { const hole = new THREE.Path(); hole.absellipse(0, 0, irx, irz, 0, Math.PI * 2, true); s.holes.push(hole); }
+  const g = new THREE.ExtrudeGeometry(s, { depth: h, bevelEnabled: false, curveSegments: 36 }); g.rotateX(-Math.PI / 2); return g;
+}
+function landmark(key, name, x, z, top, info) {
+  const g = new THREE.Group(); g.position.set(x, G, z); g.userData.key = key; scene.add(g);
+  LANDMARKS[key] = { key, name, info, group: g, pos: new THREE.Vector3(x, G + top, z), top };
+  pickables.push(g);
+  return g;
+}
+const white = plainMat(0xeeeeee), steel = plainMat(0x9aa3ab);
+
+// Willis Tower: bundled tubes
+{
+  const g = landmark('willis', 'Willis Tower', -3.25, 2.65, 5.2, 'Willis Tower (1974), 1,451 feet. Big downtown employers like the ones in towers here would pay the proposed corporate head tax.');
+  const m = winMat(0x2b2c31, { wx: 11, wy: 16, glass: 0.25 });
+  const H = [[2.05, 3.8, 2.9], [4.42, 4.42, 3.8], [2.9, 3.8, 2.05]];
+  const s = 0.12;
+  for (let r = 0; r < 3; r++) for (let c = 0; c < 3; c++) bx(g, s, H[r][c], s, m, (c - 1) * s, (r - 1) * s);
+  cyl(g, 0.012, 0.015, 0.85, 6, white, -0.02, -0.02, 4.42); cyl(g, 0.012, 0.015, 0.85, 6, white, 0.07, 0.01, 4.42);
+}
+// Trump Tower
+{
+  const g = landmark('trump', 'Trump Tower', 0.45, -3.62, 4.4, 'Trump International Hotel & Tower (2009), 1,388 feet to the top of its spire, on the north bank of the main branch.');
+  const m = winMat(0xa9bccd, { wx: 12, wy: 16, glass: 0.4 });
+  bx(g, 0.44, 1.0, 0.22, m, 0, 0); bx(g, 0.36, 1.0, 0.19, m, 0, 0, 1.0); bx(g, 0.28, 0.9, 0.16, m, 0, 0, 2.0); bx(g, 0.2, 0.7, 0.13, m, 0, 0, 2.9);
+  cyl(g, 0.008, 0.016, 0.63, 6, steel, 0, 0, 3.6);
+}
+// St. Regis
+{
+  const g = landmark('stregis', 'St. Regis Chicago', 3.65, -3.35, 3.8, 'St. Regis Chicago (2020), 1,198 feet, the city’s third-tallest building, made of three linked glass towers.');
+  const m = winMat(0x5fa3b5, { wx: 12, wy: 16, glass: 0.4 });
+  [[-0.13, 2.6], [0, 3.65], [0.13, 3.1]].forEach(([dx, h]) => addMesh(taperBox(0.14, h, 0.16, 0.8), m, dx, 0, 0, g));
+}
+// 875 N Michigan (Hancock)
+{
+  const g = landmark('hancock', '875 N. Michigan (Hancock)', 1.25, -8.75, 4.6, '875 North Michigan Avenue (1969), formerly the John Hancock Center: 1,128 feet to the roof, with its famous X-bracing.');
+  const m = winMat(0x1f2024, { wx: 12, wy: 16, glass: 0.2 });
+  addMesh(taperBox(0.5, 3.44, 0.32, 0.62), m, 0, 0, 0, g);
+  const xm = plainMat(0x111214);
+  for (let k = 0; k < 5; k++) {
+    const y0 = k * 0.688, yc = y0 + 0.344; const f = 1 - 0.38 * (yc / 3.44); const w = 0.5 * f, d = 0.32 * f;
+    const len = Math.hypot(w, 0.688), ang = Math.atan2(0.688, w);
+    for (const sz of [-1, 1]) for (const sa of [-1, 1]) {
+      const b = addMesh(new THREE.BoxGeometry(len, 0.016, 0.006), xm, 0, yc, sz * (d / 2 + 0.004), g, { cast: false });
+      b.rotation.z = sa * ang;
+    }
+  }
+  cyl(g, 0.01, 0.014, 1.1, 6, white, -0.06, 0, 3.44); cyl(g, 0.01, 0.014, 1.1, 6, white, 0.06, 0, 3.44);
+}
+// Aon Center
+{
+  const g = landmark('aon', 'Aon Center', 2.05, -1.45, 3.6, 'Aon Center (1973), 1,136 feet. Offices like these lease equipment and cloud software, which the personal property lease tax covers.');
+  bx(g, 0.4, 3.46, 0.4, winMat(0xe6e3da, { wx: 16, wy: 22, glass: 0.18 }), 0, 0);
+}
+// Marina City
+{
+  const g = landmark('marina', 'Marina City', -0.12, -3.48, 1.95, 'Marina City (1964), Bertrand Goldberg’s “corncob” towers on the river. The bottom floors are a spiral parking ramp.');
+  const m = winMat(0xece6da, { wx: 14, wy: 24, glass: 0.3 }), park = plainMat(0x9b958a);
+  for (const dx of [-0.11, 0.11]) { cyl(g, 0.095, 0.095, 0.38, 20, park, dx, 0); cyl(g, 0.1, 0.1, 1.41, 20, m, dx, 0, 0.38); }
+}
+// Merchandise Mart
+{
+  const g = landmark('mart', 'Merchandise Mart', -2.85, -3.68, 1.25, 'Merchandise Mart (1930). When it opened it was the largest building in the world by floor area.');
+  const m = winMat(0x8c6a4e, { wx: 14, wy: 18, glass: 0.3 });
+  bx(g, 0.86, 0.95, 0.42, m, 0, 0); bx(g, 0.24, 0.22, 0.2, m, 0, 0, 0.95);
+}
+// Wrigley Building & Tribune Tower
+{
+  const g = landmark('wrigleybldg', 'Wrigley Building', 1.05, -3.72, 1.5, 'Wrigley Building (1924), white terra cotta at the north end of the Michigan Avenue bridge.');
+  const m = winMat(0xf4efe4, { wx: 12, wy: 16, glass: 0.25 });
+  bx(g, 0.22, 0.62, 0.18, m, 0, 0); bx(g, 0.08, 0.5, 0.08, m, 0.04, 0, 0.62); cyl(g, 0.0, 0.04, 0.22, 4, plainMat(0x7d9b90), 0.04, 0, 1.12);
+  const t = landmark('tribune', 'Tribune Tower', 1.45, -4.15, 1.55, 'Tribune Tower (1925), a neo-Gothic landmark on Michigan Avenue.');
+  const tm = winMat(0xcdc3b0, { wx: 12, wy: 16, glass: 0.25 });
+  bx(t, 0.2, 1.05, 0.18, tm, 0, 0); addMesh(taperBox(0.15, 0.25, 0.13, 0.55), tm, 0, 1.05, 0, t);
+  for (const [dx, dz] of [[-0.06, -0.05], [0.06, -0.05], [-0.06, 0.05], [0.06, 0.05]]) cyl(t, 0, 0.014, 0.14, 4, tm, dx, dz, 1.2);
+}
+// City Hall
+const cityHallMat = winMat(0xa8a296, { wx: 10, wy: 12, glass: 0.3 });
+{
+  const g = landmark('cityhall', 'City Hall', -1.3, -1.25, 0.9, 'City Hall–County Building (1911). The City Council votes on the budget here, and a budget needs 26 of 50 votes. Its roof is a garden.');
+  bx(g, 0.66, 0.55, 0.66, cityHallMat, 0, 0);
+  bx(g, 0.6, 0.012, 0.6, plainMat(0x5f9d4f, { snow: true }), 0, 0, 0.55);
+  for (let i = 0; i < 6; i++) { const tr = addMesh(new THREE.IcosahedronGeometry(0.035, 0), plainMat(0x4c8a3c, { snow: true }), -0.2 + i * 0.08, 0.6, (i % 2 ? -0.12 : 0.1), g); tr.castShadow = false; }
+  for (let i = 0; i < 8; i++) cyl(g, 0.012, 0.012, 0.42, 6, plainMat(0xd8d2c4), -0.28 + i * 0.08, 0.34, 0.06);
+  cyl(g, 0.004, 0.004, 0.22, 4, steel, 0.28, 0.28, 0.55);
+  const flag = addMesh(new THREE.BoxGeometry(0.09, 0.055, 0.004), new THREE.MeshLambertMaterial({ map: flagTexture(), side: THREE.DoubleSide }), 0.325, 0.735, 0.28, g, { cast: false });
+  LANDMARKS.cityhall.flag = flag;
+}
+function flagTexture() {
+  const c = document.createElement('canvas'); c.width = 96; c.height = 64; const x = c.getContext('2d');
+  x.fillStyle = '#fff'; x.fillRect(0, 0, 96, 64); x.fillStyle = '#8fd3f4'; x.fillRect(0, 9, 96, 9); x.fillRect(0, 46, 96, 9);
+  x.fillStyle = '#e8253a'; for (let i = 0; i < 4; i++) { x.beginPath(); const cx = 18 + i * 20, cy = 32; for (let k = 0; k < 12; k++) { const r = k % 2 ? 3 : 7, a = -Math.PI / 2 + k * Math.PI / 6; x.lineTo(cx + r * Math.cos(a), cy + r * Math.sin(a)); } x.fill(); }
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
+}
+// Harold Washington Library
+const libGlowMat = new THREE.MeshBasicMaterial({ color: 0xffd36b, transparent: true, opacity: 0 });
+{
+  const g = landmark('library', 'Harold Washington Library', 0.2, 4.25, 0.95, 'Harold Washington Library Center (1991), the central library of Chicago Public Library. Budget choice: more money for libraries.');
+  bx(g, 0.5, 0.52, 0.46, winMat(0xa4472f, { wx: 9, wy: 9, glass: 0.35 }), 0, 0);
+  const roof = new THREE.Shape([new THREE.Vector2(-0.27, 0), new THREE.Vector2(0.27, 0), new THREE.Vector2(0, 0.17)]);
+  const rg = new THREE.ExtrudeGeometry(roof, { depth: 0.48, bevelEnabled: false }); rg.translate(0, 0, -0.24);
+  addMesh(rg, plainMat(0x4f8a6e, { snow: true }), 0, 0.52, 0, g);
+  for (const [dx, dz] of [[-0.24, -0.22], [0.24, -0.22], [-0.24, 0.22], [0.24, 0.22]]) bx(g, 0.04, 0.07, 0.04, plainMat(0x41705a), dx, dz, 0.52);
+  const glow = addMesh(new THREE.SphereGeometry(0.42, 18, 12), libGlowMat, 0, 0.35, 0, g, { cast: false }); glow.receiveShadow = false;
+  LANDMARKS.library.glow = glow;
+}
+// Board of Trade
+{
+  const g = landmark('cbot', 'Chicago Board of Trade', -1.35, 3.2, 2.0, 'Chicago Board of Trade Building (1930), topped by a statue of Ceres. Budget choice: the extra pension payment, which chips away at $36.4B in pension debt.');
+  const m = winMat(0xb7ab95, { wx: 11, wy: 15, glass: 0.3 });
+  bx(g, 0.36, 1.2, 0.3, m, 0, 0); bx(g, 0.26, 0.42, 0.22, m, 0, 0, 1.2); addMesh(taperBox(0.18, 0.18, 0.15, 0.2), plainMat(0x6f8b84), 0, 1.62, 0, g);
+  cyl(g, 0.012, 0.016, 0.06, 6, plainMat(0xc9a14a), 0, 0, 1.78);
+}
+// Art Institute
+{
+  const g = landmark('aic', 'Art Institute', 1.7, 1.35, 0.4, 'Art Institute of Chicago (1893), on Michigan Avenue at the edge of Grant Park.');
+  bx(g, 0.5, 0.22, 0.3, plainMat(0xd9d0be), 0, 0); bx(g, 0.5, 0.14, 0.42, plainMat(0xcfc6b2), 0.5, 0);
+  for (const dz of [-0.09, 0.09]) bx(g, 0.04, 0.04, 0.025, plainMat(0x5d6d58), -0.29, dz);
+}
+// Millennium Park: the Bean + Pritzker Pavilion
+{
+  const g = landmark('bean', 'Cloud Gate (“the Bean”)', 1.75, -0.55, 0.3, 'Cloud Gate (2006), better known as the Bean, in Millennium Park.');
+  const bean = addMesh(new THREE.SphereGeometry(1, 28, 18), new THREE.MeshPhongMaterial({ color: 0xc9d3dc, specular: 0xffffff, shininess: 120 }), 0, 0.07, 0, g);
+  bean.scale.set(0.16, 0.075, 0.1);
+  const p = landmark('pritzker', 'Pritzker Pavilion', 2.25, -1.05, 0.55, 'Jay Pritzker Pavilion (2004), Frank Gehry’s bandshell in Millennium Park.');
+  for (let i = 0; i < 4; i++) { const t = addMesh(new THREE.TorusGeometry(0.16 + i * 0.03, 0.012, 6, 16, Math.PI * 0.9), steel, -0.05 + i * 0.03, 0.18 + i * 0.05, 0, p); t.rotation.y = Math.PI / 2; t.rotation.z = 0.4 + i * 0.2; }
+  const lawn = new THREE.GridHelper(0.6, 6, 0x9aa3ab, 0x9aa3ab); lawn.position.set(2.3, G + 0.12, -0.6); scene.add(lawn);
+}
+// Buckingham Fountain
+let fountainJet;
+{
+  const g = landmark('fountain', 'Buckingham Fountain', 3.6, 5.0, 0.45, 'Buckingham Fountain (1927), the centerpiece of Grant Park.');
+  const pink = plainMat(0xe6c3b4);
+  cyl(g, 0.34, 0.36, 0.03, 32, pink, 0, 0); addMesh(new THREE.CircleGeometry(0.31, 32).rotateX(-Math.PI / 2), waterMat, 0, 0.032, 0, g);
+  cyl(g, 0.16, 0.12, 0.06, 24, pink, 0, 0, 0.03); cyl(g, 0.1, 0.07, 0.05, 20, pink, 0, 0, 0.09); cyl(g, 0.05, 0.035, 0.05, 16, pink, 0, 0, 0.14);
+  fountainJet = addMesh(new THREE.ConeGeometry(0.03, 1, 10, 1, true).translate(0, 0.5, 0), new THREE.MeshBasicMaterial({ color: 0xdff4ff, transparent: true, opacity: 0.65 }), 0, 0.19, 0, g, { cast: false });
+  fountainJet.scale.y = 0.25;
+}
+// Navy Pier + Centennial Wheel
+let wheel;
+{
+  const g = landmark('navypier', 'Navy Pier', 8.6, -5.0, 1.4, 'Navy Pier (1916) and its Centennial Wheel, stretching about two-thirds of a mile into Lake Michigan.');
+  bx(g, 5.2, 0.12, 0.34, plainMat(0xb9b2a0), 0, 0, -G);
+  bx(g, 3.6, 0.14, 0.2, plainMat(0x8f5f45), 0.3, 0, 0.02);
+  addMesh(new THREE.SphereGeometry(0.17, 18, 10, 0, Math.PI * 2, 0, Math.PI / 2), plainMat(0xd8d2c4), 2.35, 0.02, 0, g);
+  wheel = new THREE.Group(); wheel.position.set(-1.3, 0.62, 0); g.add(wheel);
+  const rimM = plainMat(0xe9eef2);
+  wheel.add(new THREE.Mesh(new THREE.TorusGeometry(0.5, 0.012, 6, 40), rimM));
+  for (let i = 0; i < 14; i++) {
+    const a = i / 14 * Math.PI * 2;
+    const sp = new THREE.Mesh(new THREE.BoxGeometry(0.006, 0.5, 0.006), rimM); sp.position.set(Math.cos(a) * 0.25, Math.sin(a) * 0.25, 0); sp.rotation.z = a - Math.PI / 2; wheel.add(sp);
+    const gd = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.035, 0.035), plainMat(i % 2 ? 0xe8253a : 0x8fd3f4)); gd.position.set(Math.cos(a) * 0.5, Math.sin(a) * 0.5, 0.03); wheel.add(gd);
+  }
+  for (const s of [-1, 1]) { const leg = addMesh(new THREE.BoxGeometry(0.02, 0.66, 0.02), rimM, -1.3 + s * 0.12, 0.3, 0.05, g, { cast: false }); leg.rotation.z = s * 0.2; }
+}
+// Lake Point Tower
+{
+  const g = landmark('lakepoint', 'Lake Point Tower', 5.75, -4.35, 2.1, 'Lake Point Tower (1968), the only skyscraper east of Lake Shore Drive.');
+  const m = winMat(0x3a2f27, { wx: 12, wy: 16, glass: 0.25 });
+  for (let i = 0; i < 3; i++) { const a = i / 3 * Math.PI * 2; cyl(g, 0.1, 0.1, 1.97, 16, m, Math.cos(a) * 0.08, Math.sin(a) * 0.08); }
+}
+// Water Tower
+{
+  const g = landmark('watertower', 'Water Tower', 0.95, -8.1, 0.6, 'Chicago Water Tower (1869), one of the few buildings to survive the Great Chicago Fire of 1871.');
+  const m = plainMat(0xe3d8bb);
+  bx(g, 0.14, 0.15, 0.14, m, 0, 0); bx(g, 0.07, 0.25, 0.07, m, 0, 0, 0.15); cyl(g, 0, 0.04, 0.12, 8, plainMat(0x6e6a5f), 0, 0, 0.4);
+}
+// Museum Campus
+{
+  const f = landmark('field', 'Field Museum', 3.95, 13.6, 0.5, 'Field Museum (opened on this site in 1921), home of Sue the T. rex.');
+  const fm = plainMat(0xece5d4);
+  bx(f, 0.36, 0.26, 0.75, fm, 0, 0); bx(f, 0.12, 0.34, 0.24, fm, -0.12, 0);
+  for (let i = 0; i < 8; i++) cyl(f, 0.01, 0.01, 0.22, 6, fm, 0.19, -0.3 + i * 0.085);
+  const s = landmark('shedd', 'Shedd Aquarium', 6.9, 12.35, 0.5, 'Shedd Aquarium (1930), on the lakefront at the Museum Campus.');
+  cyl(s, 0.28, 0.3, 0.2, 8, fm, 0, 0); addMesh(new THREE.SphereGeometry(0.12, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2), plainMat(0x6f8f88), 0, 0.2, 0, s);
+  const a = landmark('adler', 'Adler Planetarium', 9.15, 13.0, 0.4, 'Adler Planetarium (1930), America’s first planetarium.');
+  cyl(a, 0.18, 0.2, 0.14, 12, plainMat(0x9c8370), 0, 0); addMesh(new THREE.SphereGeometry(0.1, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2), plainMat(0x7a6447), 0, 0.14, 0, a);
+}
+// Soldier Field
+{
+  const g = landmark('soldier', 'Soldier Field', 4.55, 15.9, 0.75, 'Soldier Field (1924), home of the Chicago Bears. Budget choice: raising the tax on online sports betting.');
+  addMesh(ellipseGeo(0.42, 0.66, 0.26, 0.25, 0.47), plainMat(0xa7a297), 0, 0, 0, g);
+  addMesh(ellipseGeo(0.25, 0.47, 0.02), plainMat(0x4f9a3e, { snow: true }), 0, 0, 0, g);
+  for (const sx of [-1, 1]) { for (let i = 0; i < 9; i++) cyl(g, 0.014, 0.014, 0.28, 6, plainMat(0xf0ece0), sx * 0.48, -0.48 + i * 0.12); bx(g, 0.05, 0.04, 1.06, plainMat(0xf0ece0), sx * 0.48, 0, 0.28); }
+  const bowl = addMesh(taperBox(0.24, 0.3, 0.9, 1.25), winMat(0x7f8f9a, { wx: 14, wy: 14, glass: 0.5 }), 0.22, 0, 0, g, { cast: true }); bowl.position.y = 0.2;
+}
+// McCormick Place
+{
+  const g = landmark('mccormick', 'McCormick Place', 3.6, 23.2, 0.5, 'McCormick Place, the largest convention center in North America.');
+  bx(g, 1.3, 0.24, 0.75, plainMat(0x2b2c2f), 0.5, 0); bx(g, 1.4, 0.32, 1.0, plainMat(0xd7d3c8), -1.4, 0.3);
+  for (let i = 0; i < 6; i++) cyl(g, 0.01, 0.01, 0.25, 4, steel, -1.95 + i * 0.22, 0.3, 0.32);
+}
+// Union Station
+{
+  const g = landmark('union', 'Union Station', -4.3, 3.05, 0.5, 'Chicago Union Station (1925), the city’s main Amtrak and Metra hub.');
+  bx(g, 0.5, 0.3, 0.4, plainMat(0xd7ccb0), 0, 0); bx(g, 0.3, 0.02, 0.26, plainMat(0x7da0b2), 0, 0, 0.3);
+}
+// Wrigley Field
+{
+  const g = landmark('wrigley', 'Wrigley Field', -10.6, -36.0, 0.5, 'Wrigley Field (1914), home of the Cubs, at Clark and Addison.');
+  const stand = plainMat(0x6f7f8a), ivy = plainMat(0x3b6e2f);
+  addMesh(new THREE.BoxGeometry(1.0, 0.02, 1.0).translate(0, 0.01, 0), plainMat(0x4fa043, { snow: true }), 0, 0, 0, g);
+  const dirt = addMesh(new THREE.BoxGeometry(0.3, 0.022, 0.3).translate(0, 0.012, 0), plainMat(0xb6835a), -0.18, 0, 0.18, g); dirt.rotation.y = Math.PI / 4;
+  bx(g, 1.1, 0.2, 0.18, stand, 0, 0.55); bx(g, 0.18, 0.2, 1.1, stand, -0.55, 0);
+  bx(g, 1.1, 0.1, 0.12, ivy, 0, -0.56); bx(g, 0.12, 0.1, 1.1, ivy, 0.56, 0);
+  bx(g, 0.3, 0.22, 0.06, plainMat(0x214d2a), 0.42, -0.62);
+  bx(g, 0.18, 0.1, 0.03, plainMat(0xc8202f, { emissive: 0x400000 }), -0.62, 0.66, 0.18);
+}
+// United Center
+{
+  const g = landmark('uc', 'United Center', -19.0, 0.4, 0.45, 'United Center (1994), home of the Bulls and Blackhawks.');
+  addMesh(ellipseGeo(0.55, 0.42, 0.28), winMat(0xa2836a, { wx: 10, wy: 10, glass: 0.4 }), 0, 0, 0, g);
+  addMesh(new THREE.SphereGeometry(1, 20, 10, 0, Math.PI * 2, 0, Math.PI / 2), plainMat(0x5d6670, { snow: true }), 0, 0.28, 0, g).scale.set(0.5, 0.08, 0.38);
+}
+// Rate Field
+{
+  const g = landmark('ratefield', 'Rate Field', -3.4, 32.4, 0.5, 'Rate Field (1991), home of the White Sox, on 35th Street.');
+  addMesh(ellipseGeo(0.6, 0.55, 0.26, 0.38, 0.36), plainMat(0x44505e), 0, 0, 0, g);
+  addMesh(ellipseGeo(0.38, 0.36, 0.02), plainMat(0x4fa043, { snow: true }), 0, 0, 0, g);
+}
+// CPD Headquarters
+const cpdLight = new THREE.Group();
+{
+  const g = landmark('cpd', 'CPD Headquarters', 1.0, 35.1, 0.6, 'Chicago Police Department headquarters, 3510 S. Michigan Ave. The mayor’s proposed 2027 CPD budget is $2.24B.');
+  bx(g, 0.55, 0.36, 0.45, winMat(0x6d8aa3, { wx: 12, wy: 14, glass: 0.5 }), 0, 0);
+  const star = addMesh(new THREE.CylinderGeometry(0.08, 0.08, 0.02, 6), plainMat(0xc9b25e), 0, 0.37, 0, g); star.castShadow = false;
+}
+
+// POIs without a building
+const POI = {
+  michigan: { name: 'Michigan Avenue', pos: new THREE.Vector3(1.0, G + 0.5, -1.0) },
+  bungalow: { name: 'Bungalow Belt', pos: new THREE.Vector3(-15.5, G + 0.5, 16) },
+  grantpark: { name: 'Grant Park', pos: new THREE.Vector3(3.0, G + 0.5, 7.5) },
+  north: { name: 'North Side', pos: new THREE.Vector3(-12, G + 0.5, -20) },
+  clinic: { name: 'West Side', pos: new THREE.Vector3(-13, G + 0.5, 8) },
+};
+const focusPos = k => (LANDMARKS[k]?.pos || POI[k]?.pos || new THREE.Vector3());
+
+/* ---------- procedural city: buildings, houses, trees ---------- */
+const reserved = Object.values(LANDMARKS).map(l => [l.group.position.x, l.group.position.z, l.key === 'navypier' ? 0 : (['soldier', 'wrigley', 'uc', 'ratefield', 'mccormick'].includes(l.key) ? 1.4 : 0.75)]);
+reserved.push([3.6, 23.2, 2.2], [-1.4, 23.5, 1.5]);
+const nearReserved = (x, z) => reserved.some(([rx, rz, r]) => Math.abs(x - rx) < r && Math.abs(z - rz) < r);
+const nearRoad = (x, z, m) => RIVERS.some(r => distPoly(x, z, r) < m) || Object.values(EXPWY).some(r => distPoly(x, z, r) < m) || distPoly(x, z, LSD) < m * 0.9;
+
+const TOWER_COLS = [0x6d8597, 0x4a5866, 0x9aa8b3, 0xc8c1b0, 0x2e3640, 0x8e9a7f, 0xb58d68, 0xa9a090, 0x5b6f80, 0xd6d0c2, 0x384452];
+const MID_COLS = [0x9c5a43, 0xb06a4a, 0x8f7a66, 0xc4b7a0, 0x7b8a96, 0xa89a84, 0x6e7d8a, 0xb9a37f];
+const HOUSE_COLS = [0x9c4a36, 0xb0593d, 0x8a4b3a, 0xa8775a, 0xc7b08a, 0x7d7a74, 0xbfb6a6, 0x9a6b4f, 0xc29a6b];
+const ROOF_COLS = [0x4b4a4f, 0x5b4038, 0x3e4347, 0x6a5444];
+const TREE_COLS = [0x4e7d3a, 0x5f8f45, 0x3f6b34, 0x6b9a4c, 0x557e3e];
+
+const towers = [], houses = [], trees = [], downtownCells = [], hoodCells = [];
+const LOOP = (x, z) => x > -3.6 && x < 1.25 && z > -2.95 && z < 4.7;
+const CORE = (x, z) => (x > -4.6 && x < 6 && z > -9.6 && z < 6) || (x > -3.6 && x < 1.2 && z > 4 && z < 11) || (x > -8.5 && x < -3.6 && z > -4 && z < 4.5);
+for (let i = -24; i < 18; i++) for (let j = -41; j < 37; j++) {
+  const cx = i + 0.5, cz = j + 0.5;
+  if (!isLand(cx, cz, 0.55) || inPark(cx, cz) || nearReserved(cx, cz) || nearRoad(cx, cz, 0.5)) {
+    if (inPark(cx, cz) && isLand(cx, cz, 0.3) && !nearReserved(cx, cz)) for (let t = 0; t < 3; t++) if (rnd() < 0.75) trees.push([cx + R(-0.45, 0.45), cz + R(-0.45, 0.45), R(0.8, 1.3)]);
+    continue;
+  }
+  const loop = LOOP(cx, cz), core = CORE(cx, cz);
+  const arterial = (Math.abs(((i % 4) + 4) % 4) === 0 || Math.abs(((i + 1) % 4 + 4) % 4) === 0 || Math.abs(((j % 4) + 4) % 4) === 0 || Math.abs(((j + 1) % 4 + 4) % 4) === 0);
+  if (loop) {
+    const n = rnd() < 0.35 ? 2 : 1;
+    for (let k = 0; k < n; k++) {
+      const w = n === 2 ? R(0.3, 0.38) : R(0.5, 0.78), d = R(0.45, 0.78);
+      const ox = n === 2 ? (k ? 0.2 : -0.2) : R(-0.05, 0.05);
+      const h = 0.6 + Math.pow(rnd(), 1.4) * 2.6;
+      towers.push({ x: cx + ox, z: cz + R(-0.05, 0.05), w, d, h, c: pick(TOWER_COLS) });
+      if (rnd() < 0.35 && h > 1.4) towers.push({ x: cx + ox, z: cz, w: w * 0.7, d: d * 0.7, h: h + R(0.3, 0.9), c: towers[towers.length - 1].c });
+    }
+    downtownCells.push([cx, cz]);
+  } else if (core) {
+    const tall = (cz < -3 && cx > -4 && cx < 6) || (cz > 4 && cz < 11 && cx > -3 && cx < 1.3);
+    const h = tall ? 0.4 + Math.pow(rnd(), 1.6) * 2.0 : 0.25 + Math.pow(rnd(), 1.8) * 1.2;
+    towers.push({ x: cx + R(-0.06, 0.06), z: cz + R(-0.06, 0.06), w: R(0.45, 0.78), d: R(0.45, 0.78), h, c: pick(h > 0.9 ? TOWER_COLS : MID_COLS) });
+    if (rnd() < 0.25) trees.push([cx + R(-0.45, 0.45), cz + 0.45, 0.8]);
+    downtownCells.push([cx, cz]);
+  } else if (arterial && rnd() < 0.55) {
+    const h = R(0.16, 0.34);
+    towers.push({ x: cx + R(-0.05, 0.05), z: cz + R(-0.05, 0.05), w: R(0.55, 0.78), d: R(0.5, 0.75), h, c: pick(MID_COLS), small: true });
+    hoodCells.push([cx, cz]);
+  } else {
+    const far = Math.hypot(cx, cz) > 26;
+    const rows = 2, per = far ? 2 : 3;
+    for (let r = 0; r < rows; r++) for (let k = 0; k < per; k++) {
+      if (rnd() < 0.12) continue;
+      const hx = cx - 0.3 + k * (0.6 / Math.max(1, per - 1)) + R(-0.03, 0.03);
+      const hz = cz + (r ? 0.2 : -0.2);
+      houses.push({ x: hx, z: hz, w: R(0.14, 0.2), d: R(0.24, 0.3), h: R(0.1, 0.2), c: pick(HOUSE_COLS), rc: pick(ROOF_COLS) });
+    }
+    for (let t = 0; t < 2; t++) if (rnd() < 0.7) trees.push([cx + R(-0.46, 0.46), cz + (rnd() < 0.5 ? 0.46 : -0.46) + R(-0.03, 0.03), R(0.7, 1.15)]);
+    hoodCells.push([cx, cz]);
+  }
+}
+// lakefront park trees (strip parks outside the cell loop)
+for (let z = -46; z < 40; z += 0.35) { const sx = shoreX(z); if (inPark(sx - 0.8, z)) for (let k = 0; k < 2; k++) { const x = sx - R(0.35, 2.4); if (inPark(x, z) && !nearRoad(x, z, 0.3) && !nearReserved(x, z)) trees.push([x, z + R(-0.15, 0.15), R(0.8, 1.3)]); } }
+for (let i = 0; i < 140; i++) { const x = R(8.35, 9.6), z = R(14, 20.4); trees.push([x, z, R(0.7, 1.1)]); }
+
+const dummy = new THREE.Object3D(), tmpC = new THREE.Color();
+function instanced(geo, mat, list, setFn, o = {}) {
+  const m = new THREE.InstancedMesh(geo, mat, list.length);
+  list.forEach((it, i) => { setFn(it, dummy); dummy.updateMatrix(); m.setMatrixAt(i, dummy.matrix); if (it.c !== undefined) m.setColorAt(i, tmpC.set(it.c)); });
+  m.instanceMatrix.needsUpdate = true; if (m.instanceColor) m.instanceColor.needsUpdate = true;
+  m.castShadow = o.cast !== false; m.receiveShadow = true; m.frustumCulled = false; scene.add(m); return m;
+}
+const unitBox = new THREE.BoxGeometry(1, 1, 1).translate(0, 0.5, 0);
+instanced(unitBox, winMat(0xffffff, { wx: 10, wy: 13, glass: 0.33 }), towers, (t, d) => { d.position.set(t.x, G, t.z); d.scale.set(t.w, t.h, t.d); d.rotation.set(0, 0, 0); });
+instanced(unitBox, winMat(0xffffff, { wx: 14, wy: 15, glass: 0.3, lit: 0.85, minY: 0.13 }), houses, (t, d) => { d.position.set(t.x, G, t.z); d.scale.set(t.w, t.h, t.d); d.rotation.set(0, 0, 0); }, { cast: !isPhone });
+const roofGeo = new THREE.ExtrudeGeometry(new THREE.Shape([new THREE.Vector2(-0.5, 0), new THREE.Vector2(0.5, 0), new THREE.Vector2(0, 0.45)]), { depth: 1, bevelEnabled: false }).translate(0, 0, -0.5);
+instanced(roofGeo, plainMat(0xffffff, { snow: true }), houses.map(h => ({ ...h, c: h.rc })), (t, d) => { d.position.set(t.x, G + t.h, t.z); d.scale.set(t.w * 1.08, t.w * 0.9, t.d * 1.04); d.rotation.set(0, 0, 0); }, { cast: false });
+const treeGeo = new THREE.IcosahedronGeometry(0.075, 0).translate(0, 0.085, 0);
+const treeMat = new THREE.MeshLambertMaterial({ color: 0xffffff, flatShading: true });
+const TREE_C = trees.map(() => pick(TREE_COLS));
+const treeMesh = instanced(treeGeo, treeMat, trees.map((t, i) => ({ x: t[0], z: t[1], s: t[2], c: TREE_C[i] })), (t, d) => { d.position.set(t.x, G, t.z); d.scale.setScalar(t.s); d.rotation.set(0, t.x * 7, 0); });
+
+/* ---------- L tracks + moving things ---------- */
+function offsetPoly(pts, off) {
+  return pts.map((p, i) => {
+    const a = pts[Math.max(0, i - 1)], b = pts[Math.min(pts.length - 1, i + 1)];
+    let dx = b[0] - a[0], dz = b[1] - a[1]; const l = Math.hypot(dx, dz) || 1;
+    return [p[0] - dz / l * off, p[1] + dx / l * off];
+  });
+}
+class Path {
+  constructor(pts, closed = false) {
+    this.p = pts.map(p => [p[0], p[1]]); if (closed) this.p.push([pts[0][0], pts[0][1]]);
+    this.L = [0]; for (let i = 1; i < this.p.length; i++) this.L.push(this.L[i - 1] + Math.hypot(this.p[i][0] - this.p[i - 1][0], this.p[i][1] - this.p[i - 1][1]));
+    this.len = this.L[this.L.length - 1];
+  }
+  at(d, o) {
+    d = ((d % this.len) + this.len) % this.len;
+    let i = 1; while (i < this.L.length - 1 && this.L[i] < d) i++;
+    const a = this.p[i - 1], b = this.p[i], seg = (this.L[i] - this.L[i - 1]) || 1, t = (d - this.L[i - 1]) / seg;
+    o.x = a[0] + (b[0] - a[0]) * t; o.z = a[1] + (b[1] - a[1]) * t; o.dx = (b[0] - a[0]) / seg; o.dz = (b[1] - a[1]) / seg; return o;
+  }
+}
+const twoWay = (pts, off) => new Path([...offsetPoly(pts, off), ...offsetPoly([...pts].reverse(), off)], true);
+
+const L_LOOP = [[-2.0, -1.95], [0.65, -1.95], [0.65, 4.1], [-2.0, 4.1]];
+const L_LINES = [
+  [[-2.0, -1.95], [-8, -1.95], [-16, -1.95], [-24, -1.95], [-40, -1.95]],
+  [[-2.0, -1.95], [-2.0, -3.4], [-2.6, -4.3], [-3.0, -5.2], [-3.0, -8], [-3.6, -9.2], [-6, -12], [-8.6, -16], [-9.4, -20], [-9.4, -36], [-9.4, -48]],
+  [[0.65, 4.1], [0.65, 12], [0.55, 20], [0.4, 30], [0.4, 46]],
+];
+const elMat = plainMat(0x4d4a46);
+const pillarPts = [];
+function track(pts, closed) {
+  const path = new Path(pts, closed);
+  ribbon(closed ? [...pts, pts[0]] : pts, 0.16, G + 0.2, elMat).castShadow = true;
+  for (let d = 0; d < path.len; d += 0.55) { const o = path.at(d, {}); if (isLand(o.x, o.z, 0.2)) pillarPts.push([o.x, o.z]); }
+}
+track(L_LOOP, true); L_LINES.forEach(l => track(l, false));
+instanced(new THREE.BoxGeometry(0.03, 0.2, 0.03).translate(0, 0.1, 0), elMat, pillarPts.map(p => ({ x: p[0], z: p[1] })), (t, d) => { d.position.set(t.x, G, t.z); d.scale.set(1, 1, 1); });
+
+const movers = [];
+function traffic(path, n, o) {
+  const len = o.len ?? 0.09, geo = new THREE.BoxGeometry(o.w ?? 0.05, o.h ?? 0.045, len).translate(0, (o.h ?? 0.045) / 2, 0);
+  const mat = o.mat || new THREE.MeshLambertMaterial({ color: 0xffffff });
+  const cars = o.cars || 1;
+  const mesh = new THREE.InstancedMesh(geo, mat, n * cars); mesh.frustumCulled = false; mesh.castShadow = false; mesh.receiveShadow = false;
+  const list = [];
+  for (let i = 0; i < n; i++) { list.push({ d: (i / n) * path.len + R(0, path.len / n * 0.5), v: (o.speed ?? 0.6) * R(0.85, 1.15) }); for (let c = 0; c < cars; c++) mesh.setColorAt(i * cars + c, tmpC.set(Array.isArray(o.color) ? pick(o.color) : o.color ?? 0xffffff)); }
+  if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+  scene.add(mesh);
+  const mv = { mesh, path, list, cars, len, y: o.y ?? G + 0.02, mult: 1, visibleN: n, ping: !!o.ping, o: {} };
+  movers.push(mv); return mv;
+}
+function updateMovers(dt) {
+  for (const mv of movers) {
+    const { mesh, path, list, cars, len } = mv; let idx = 0;
+    for (let i = 0; i < list.length; i++) {
+      const it = list[i]; it.d += it.v * dt * mv.mult;
+      for (let c = 0; c < cars; c++) {
+        const p = path.at(it.d - c * (len + 0.015), mv.o);
+        dummy.position.set(p.x, mv.y, p.z); dummy.rotation.set(0, Math.atan2(p.dx, p.dz), 0); dummy.scale.set(1, 1, 1); dummy.updateMatrix();
+        mesh.setMatrixAt(idx++, dummy.matrix);
+      }
+    }
+    mesh.count = Math.min(list.length, mv.visibleN) * cars;
+    mesh.instanceMatrix.needsUpdate = true;
+  }
+}
+const CAR_COLS = [0xd8d8d8, 0x2b2b2b, 0xb3262e, 0x335a8f, 0xe6e1d6, 0x7d8790, 0x1f4a3a, 0xc9a640];
+const carMat = new THREE.MeshLambertMaterial({ color: 0xffffff, emissive: 0x000000 });
+for (const k in EXPWY) traffic(twoWay(EXPWY[k], 0.08), k === 'kennedy' || k === 'ryan' ? 46 : 32, { color: CAR_COLS, speed: 0.9, mat: carMat });
+traffic(twoWay(LSD, 0.07), 70, { color: CAR_COLS, speed: 0.8, mat: carMat });
+const trainMat = new THREE.MeshLambertMaterial({ color: 0xffffff, emissive: 0x000000 });
+traffic(new Path(L_LOOP, true), 3, { color: [0xb8bfc6], cars: 4, len: 0.16, w: 0.07, h: 0.065, y: G + 0.205, speed: 0.55, mat: trainMat });
+traffic(new Path(L_LOOP.slice().reverse(), true), 2, { color: [0xb8bfc6], cars: 4, len: 0.16, w: 0.07, h: 0.065, y: G + 0.205, speed: 0.5, mat: trainMat });
+L_LINES.forEach(l => traffic(twoWay(l, 0.035), 3, { color: [0xb8bfc6], cars: 5, len: 0.16, w: 0.07, h: 0.065, y: G + 0.205, speed: 0.8, mat: trainMat }));
+const buses = traffic(twoWay([[1.0, -9.5], [1.0, 12]], 0.03), 6, { color: [0x2f6db5], len: 0.15, w: 0.06, h: 0.06, speed: 0.35 });
+const ARTERIALS = [[[-16, -41], [-16, 36]], [[-24, -41], [-24, 36]], [[-8, -12], [-8, 36]], [[-24, -16], [0.5, -16]], [[-24, 12], [3, 12]], [[-24, -32], [-3, -32]], [[-24, 24], [-5, 24]], [[-12, -41], [-12, 36]], [[-20, -41], [-20, 36]]];
+const school = []; ARTERIALS.forEach((a, i) => school.push(traffic(twoWay(a, 0.06), 2, { color: [0xf2b51c], len: 0.12, w: 0.055, h: 0.05, speed: 0.4 })));
+const vans = traffic(twoWay(EXPWY.ike.slice().reverse(), 0.12), 12, { color: [0xe86a1c], len: 0.13, w: 0.06, h: 0.07, speed: 0.75 });
+ARTERIALS.forEach(a => traffic(twoWay(a, 0.06), 10, { color: CAR_COLS, speed: 0.45, mat: carMat }));
+const boats = traffic(twoWay(RIV_MAIN.concat([[9, -2.6]]), 0.07), 3, { color: [0xf2f2f2], len: 0.22, w: 0.07, h: 0.05, y: G - 0.03, speed: 0.2 });
+
+/* ---------- cranes, police lights, trash, signs, people, sailboats ---------- */
+const cranes = [];
+const CRANE_SITES = [[-6.5, -2.5], [-5.2, -0.6], [-1.2, 8.6], [4.2, -2.2], [-1.6, -5.6], [-4.6, 10.2], [-2.6, 6.4], [-6.8, -6.4]];
+for (const [x, z] of CRANE_SITES) {
+  const g = new THREE.Group(); g.position.set(x, G, z);
+  const ym = plainMat(0xf2c12e), rm = plainMat(0xd2402e);
+  const h = R(1.6, 2.4);
+  const mast = new THREE.Mesh(new THREE.BoxGeometry(0.05, h, 0.05).translate(0, h / 2, 0), ym); g.add(mast);
+  const jib = new THREE.Group(); jib.position.y = h; g.add(jib);
+  jib.add(new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.04, 0.04).translate(0.3, 0, 0), ym));
+  jib.add(new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.07, 0.07).translate(-0.18, -0.02, 0), rm));
+  jib.add(new THREE.Mesh(new THREE.BoxGeometry(0.004, 0.6, 0.004).translate(0.55, -0.3, 0), plainMat(0x333333)));
+  const site = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.15, 0.5).translate(0.15, 0.075, 0.15), plainMat(0x8b8274)); g.add(site);
+  jib.rotation.y = R(0, 6.28); g.userData = { jib, spd: R(0.15, 0.35) * (rnd() < 0.5 ? -1 : 1) };
+  g.visible = false; scene.add(g); cranes.push(g);
+}
+const sampleCells = (cells, n) => { const out = []; for (let i = 0; i < n; i++) out.push(cells[Math.floor(rnd() * cells.length)]); return out; };
+const hoodSample = sampleCells(hoodCells.filter(([x, z]) => Math.hypot(x, z) < 34), 220);
+const policeGroup = new THREE.Group(); scene.add(policeGroup);
+const redM = new THREE.MeshBasicMaterial({ color: 0xff2a2a }), blueM = new THREE.MeshBasicMaterial({ color: 0x2a6bff });
+const policeLights = hoodSample.slice(0, 24).map(([x, z]) => {
+  const g = new THREE.Group(); g.position.set(x + 0.48, G + 0.06, z + R(-0.3, 0.3));
+  g.add(new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.04, 0.1).translate(0, -0.02, 0), plainMat(0xf0f0f0)));
+  const r = new THREE.Mesh(new THREE.SphereGeometry(0.022, 8, 6), redM); r.position.x = -0.015; const b = new THREE.Mesh(new THREE.SphereGeometry(0.022, 8, 6), blueM); b.position.x = 0.015;
+  g.add(r, b); g.userData = { r, b, ph: R(0, 6) }; g.visible = false; policeGroup.add(g); return g;
+});
+const trashMesh = instanced(new THREE.BoxGeometry(0.05, 0.035, 0.05).translate(0, 0.0175, 0), plainMat(0x5b4a2f), hoodSample.slice(24, 84).map(([x, z]) => ({ x: x + R(-0.45, 0.45), z: z + 0.47, c: pick([0x5b4a2f, 0x3d5a2a, 0x4a4a4a]) })), (t, d) => { d.position.set(t.x, G, t.z); d.scale.set(R(0.8, 1.6), 1, R(0.8, 1.6)); }, { cast: false });
+trashMesh.count = 0;
+const signMesh = instanced(new THREE.BoxGeometry(0.05, 0.05, 0.006).translate(0, 0.08, 0), new THREE.MeshLambertMaterial({ color: 0xffffff }), hoodSample.slice(84, 144).map(([x, z]) => ({ x: x + R(-0.3, 0.3), z: z + 0.38, c: pick([0xffffff, 0xe8253a]) })), (t, d) => { d.position.set(t.x, G, t.z); d.scale.set(1, 1, 1); }, { cast: false });
+signMesh.count = 0;
+// people in Grant Park and lakefront
+const people = []; const PEOPLE_N = 260;
+for (let i = 0; i < PEOPLE_N; i++) {
+  const zone = rnd();
+  let x, z; if (zone < 0.55) { x = R(1.4, 5.0); z = R(-1.6, 10.8); } else if (zone < 0.8) { z = R(-30, -11); x = shoreX(z) - R(0.2, 2.4); } else { x = R(3.2, 5.2); z = R(11.4, 16.5); }
+  people.push({ x, z, a: R(0, 6.28), c: pick([0xe8253a, 0x8fd3f4, 0xf2c12e, 0xffffff, 0x2a2a2a, 0x5bd88a, 0xf08a3a]) });
+}
+const peopleMesh = instanced(new THREE.CapsuleGeometry(0.012, 0.03, 2, 6).translate(0, 0.03, 0), new THREE.MeshLambertMaterial({ color: 0xffffff }), people, (t, d) => { d.position.set(t.x, G, t.z); d.scale.set(1, 1, 1); }, { cast: false });
+peopleMesh.count = 80;
+function updatePeople(dt) {
+  const n = peopleMesh.count;
+  for (let i = 0; i < n; i++) {
+    const p = people[i]; p.a += R(-1, 1) * dt * 2; const nx = p.x + Math.sin(p.a) * dt * 0.08, nz = p.z + Math.cos(p.a) * dt * 0.08;
+    if (inPark(nx, nz)) { p.x = nx; p.z = nz; } else p.a += Math.PI;
+    dummy.position.set(p.x, G, p.z); dummy.rotation.set(0, 0, 0); dummy.scale.set(1, 1, 1); dummy.updateMatrix(); peopleMesh.setMatrixAt(i, dummy.matrix);
+  }
+  peopleMesh.instanceMatrix.needsUpdate = true;
+}
+// sailboats in Monroe Harbor
+const sails = [];
+for (let i = 0; i < 16; i++) {
+  const g = new THREE.Group(); g.position.set(R(5.7, 7.2), 0.02, R(0.2, 6.5));
+  g.add(new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.02, 0.09), plainMat(0xffffff)));
+  const s = new THREE.Mesh(new THREE.ConeGeometry(0.03, 0.12, 3).translate(0, 0.07, 0), plainMat(0xf5f5f5)); s.scale.z = 0.25; g.add(s);
+  g.rotation.y = R(0, 6.28); g.userData.ph = R(0, 6); scene.add(g); sails.push(g);
+}
+
+/* ---------- sky stuff: clouds, rain, snow, fireworks, debt balloon ---------- */
+const clouds = [];
+const cloudMat = new THREE.MeshLambertMaterial({ color: 0xffffff, flatShading: true, transparent: true, opacity: 0.8, depthWrite: false });
+for (let i = 0; i < 7; i++) {
+  const g = new THREE.Group();
+  for (let k = 0; k < 4; k++) { const s = new THREE.Mesh(new THREE.IcosahedronGeometry(R(0.35, 0.6), 1), cloudMat); s.position.set(k * 0.45 - 0.7, R(-0.1, 0.2), R(-0.25, 0.25)); s.scale.y = 0.55; g.add(s); }
+  g.position.set(R(-30, 20), R(8, 9.5), R(-40, 36)); g.userData.v = R(0.15, 0.35); scene.add(g); clouds.push(g);
+}
+const stormMat = new THREE.MeshLambertMaterial({ color: 0x4a5160, flatShading: true, transparent: true, opacity: 0 });
+const storm = new THREE.Group();
+for (let k = 0; k < 9; k++) { const s = new THREE.Mesh(new THREE.IcosahedronGeometry(R(0.7, 1.1), 1), stormMat); s.position.set(R(-2.5, 2.5), R(-0.2, 0.3), R(-2, 2)); s.scale.y = 0.55; storm.add(s); }
+storm.position.set(-1.3, 6.2, -1.0); scene.add(storm);
+const RAIN_N = 500;
+const rainGeo = new THREE.BufferGeometry(); const rainPos = new Float32Array(RAIN_N * 6);
+for (let i = 0; i < RAIN_N; i++) { const x = R(-6, 4), y = R(0, 6), z = R(-5, 4); rainPos.set([x, y, z, x - 0.02, y - 0.25, z + 0.02], i * 6); }
+rainGeo.setAttribute('position', new THREE.BufferAttribute(rainPos, 3));
+const rain = new THREE.LineSegments(rainGeo, new THREE.LineBasicMaterial({ color: 0xaac8e8, transparent: true, opacity: 0.55 })); rain.visible = false; rain.frustumCulled = false; scene.add(rain);
+const SNOW_N = 900;
+const snowGeo = new THREE.BufferGeometry(); const snowPos = new Float32Array(SNOW_N * 3);
+for (let i = 0; i < SNOW_N; i++) snowPos.set([R(-14, 14), R(0, 8), R(-14, 14)], i * 3);
+snowGeo.setAttribute('position', new THREE.BufferAttribute(snowPos, 3));
+const snow = new THREE.Points(snowGeo, new THREE.PointsMaterial({ color: 0xffffff, size: 3 * Math.min(devicePixelRatio, 2), sizeAttenuation: false, transparent: true, opacity: 0.9 })); snow.visible = false; snow.frustumCulled = false; scene.add(snow);
+// fireworks
+const FW_N = 900;
+const fwGeo = new THREE.BufferGeometry(); const fwPos = new Float32Array(FW_N * 3), fwCol = new Float32Array(FW_N * 3);
+const fwVel = new Float32Array(FW_N * 3), fwLife = new Float32Array(FW_N);
+fwGeo.setAttribute('position', new THREE.BufferAttribute(fwPos, 3)); fwGeo.setAttribute('color', new THREE.BufferAttribute(fwCol, 3));
+const fireworks = new THREE.Points(fwGeo, new THREE.PointsMaterial({ size: 4 * Math.min(devicePixelRatio, 2), sizeAttenuation: false, vertexColors: true, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
+fireworks.frustumCulled = false; scene.add(fireworks);
+let fwCursor = 0; const fwQueue = [];
+function burst(x, y, z) {
+  const col = new THREE.Color().setHSL(pick([0, 0.55, 0.13, 0.33, 0.8]), 1, 0.6);
+  for (let i = 0; i < 90; i++) {
+    const k = fwCursor = (fwCursor + 1) % FW_N; const th = R(0, 6.28), ph = Math.acos(R(-1, 1)), sp = R(1.0, 1.6);
+    fwPos.set([x, y, z], k * 3); fwVel.set([Math.sin(ph) * Math.cos(th) * sp, Math.cos(ph) * sp, Math.sin(ph) * Math.sin(th) * sp], k * 3); fwCol.set([col.r, col.g, col.b], k * 3); fwLife[k] = R(1.0, 1.6);
+  }
+  A.play('pop');
+}
+function fireworksShow(n = 6, at = focusPos('navypier')) { A.play('launch'); for (let i = 0; i < n; i++) fwQueue.push({ t: i * 0.45 + R(0, 0.2), x: at.x + R(-1.6, 1.6), y: R(2.6, 4.2), z: at.z + R(-1.2, 1.2) }); }
+function updateFireworks(dt) {
+  for (let i = fwQueue.length - 1; i >= 0; i--) { fwQueue[i].t -= dt; if (fwQueue[i].t <= 0) { const q = fwQueue.splice(i, 1)[0]; burst(q.x, q.y, q.z); } }
+  for (let k = 0; k < FW_N; k++) {
+    if (fwLife[k] <= 0) { fwPos[k * 3 + 1] = -50; continue; }
+    fwLife[k] -= dt; fwVel[k * 3 + 1] -= 0.9 * dt;
+    fwPos[k * 3] += fwVel[k * 3] * dt; fwPos[k * 3 + 1] += fwVel[k * 3 + 1] * dt; fwPos[k * 3 + 2] += fwVel[k * 3 + 2] * dt;
+    const f = Math.max(0, Math.min(1, fwLife[k])); fwCol[k * 3] *= 0.995; fwCol[k * 3 + 1] *= 0.995 * (0.9 + f * 0.1); fwCol[k * 3 + 2] *= 0.995;
+  }
+  fwGeo.attributes.position.needsUpdate = true; fwGeo.attributes.color.needsUpdate = true;
+}
+// debt balloon over City Hall
+const balloon = new THREE.Group();
+{
+  const c = document.createElement('canvas'); c.width = 256; c.height = 128; const x = c.getContext('2d');
+  x.fillStyle = '#d42a35'; x.fillRect(0, 0, 256, 128); x.fillStyle = '#ffd6d9';
+  for (let i = 0; i < 8; i++) x.fillRect(i * 32, 0, 6, 128);
+  x.fillStyle = '#fff'; x.font = 'bold 54px sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle';
+  for (let i = 0; i < 4; i++) x.fillText('$', 32 + i * 64, 64);
+  const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
+  const env = new THREE.Mesh(new THREE.SphereGeometry(0.5, 20, 14), new THREE.MeshLambertMaterial({ map: tex })); env.scale.y = 1.15; balloon.add(env);
+  const basket = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.12, 0.16), plainMat(0x7a5532)); basket.position.y = -0.85; balloon.add(basket);
+  for (const [dx, dz] of [[-0.07, -0.07], [0.07, -0.07], [-0.07, 0.07], [0.07, 0.07]]) { const r = new THREE.Mesh(new THREE.BoxGeometry(0.006, 0.4, 0.006), plainMat(0x333333)); r.position.set(dx, -0.62, dz); balloon.add(r); }
+  balloon.position.set(-1.3, 2.6, -1.25); balloon.scale.setScalar(0.001); balloon.visible = false; scene.add(balloon);
+}
+
+/* ---------- labels ---------- */
+const labelsEl = document.getElementById('labels');
+const LABEL_KEYS = ['willis', 'trump', 'hancock', 'cityhall', 'navypier', 'library', 'soldier', 'aon', 'bean', 'fountain', 'wrigley', 'uc', 'ratefield', 'cpd', 'mccormick', 'marina', 'shedd', 'stregis', 'mart'];
+const MINOR = ['marina', 'aon', 'mart', 'stregis', 'bean', 'shedd', 'mccormick'];
+const labelEls = LABEL_KEYS.map(k => { const el = document.createElement('div'); el.className = 'lbl'; el.textContent = LANDMARKS[k].name; labelsEl.appendChild(el); return { k, el, minor: MINOR.includes(k) }; });
+const extra = [{ name: 'Lake Michigan', pos: new THREE.Vector3(12, 0.2, 2) }, { name: 'Chicago River', pos: new THREE.Vector3(-0.8, 0.25, -3.12) }, { name: 'The Loop', pos: new THREE.Vector3(-1, 3.2, 0.5) }];
+extra.forEach(e => { const el = document.createElement('div'); el.className = 'lbl'; el.style.background = 'rgba(143,211,244,0.9)'; el.textContent = e.name; labelsEl.appendChild(el); labelEls.push({ pos: e.pos, el }); });
+let labelsOn = true;
+const v3 = new THREE.Vector3();
+function updateLabels() {
+  const show = labelsOn && cam.zoom > 0.75 && state.phase !== 'intro';
+  labelsEl.style.display = show ? '' : 'none'; if (!show) return;
+  const w = canvas.clientWidth, h = canvas.clientHeight;
+  for (const l of labelEls) {
+    const p = l.pos || LANDMARKS[l.k].pos; v3.copy(p).project(camera);
+    const x = (v3.x * 0.5 + 0.5) * w, y = (-v3.y * 0.5 + 0.5) * h;
+    const vis = x > -50 && x < w + 50 && y > 0 && y < h && !(l.minor && cam.zoom < (isPhone ? 1.3 : 0.95));
+    l.el.style.display = vis ? '' : 'none';
+    if (vis) l.el.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px) translate(-50%, -100%)`;
+  }
+}
+function floatText(text, k, cls) {
+  const p = focusPos(k); v3.copy(p).project(camera);
+  const el = document.createElement('div'); el.className = 'floater ' + cls; el.textContent = text;
+  el.style.left = ((v3.x * 0.5 + 0.5) * canvas.clientWidth) + 'px'; el.style.top = ((-v3.y * 0.5 + 0.5) * canvas.clientHeight) + 'px';
+  document.getElementById('app').appendChild(el); setTimeout(() => el.remove(), 1700);
+}
+
+/* =====================================================================
+   CAMERA + CONTROLS
+   ===================================================================== */
+const EL = Math.atan(1 / Math.sqrt(2)); // classic isometric 35.26°
+const cam = { target: new THREE.Vector3(-0.5, 0, 1.5), az: Math.PI / 4, azGoal: Math.PI / 4, zoom: 1.05, zoomGoal: 1.05, tGoal: null };
+let shadowsDirty = true;
+let viewOff = { x: 0, y: 0 };
+function applyCamera() {
+  const d = 300;
+  camera.position.set(cam.target.x + Math.sin(cam.az) * Math.cos(EL) * d, cam.target.y + Math.sin(EL) * d, cam.target.z + Math.cos(cam.az) * Math.cos(EL) * d);
+  camera.lookAt(cam.target);
+  camera.zoom = cam.zoom; camera.updateProjectionMatrix();
+}
+function resize() {
+  const w = innerWidth, h = innerHeight;
+  renderer.setSize(w, h, false);
+  const a = w / h; camera.left = -VIEW * a / 2; camera.right = VIEW * a / 2; camera.top = VIEW / 2; camera.bottom = -VIEW / 2;
+  const hud = document.getElementById('hud').getBoundingClientRect().height;
+  const desktop = innerWidth >= 900;
+  const panel = document.getElementById('panel');
+  const panelHidden = panel.classList.contains('away');
+  const sheet = desktop || panelHidden ? 0 : panel.getBoundingClientRect().height;
+  const pw = desktop && !panelHidden ? 400 : 0;
+  document.documentElement.style.setProperty('--hud-h', hud + 'px');
+  document.documentElement.style.setProperty('--panel-w', pw + 'px');
+  document.documentElement.style.setProperty('--sheet-h', (desktop ? 0 : sheet) + 'px');
+  viewOff = { x: pw / 2, y: (sheet - hud) / 2 };
+  camera.setViewOffset(w, h, viewOff.x, viewOff.y, w, h);
+  applyCamera(); shadowsDirty = true;
+}
+const clampT = () => { cam.target.x = Math.max(-24, Math.min(14, cam.target.x)); cam.target.z = Math.max(-42, Math.min(38, cam.target.z)); };
+function panBy(dx, dy) {
+  const upp = (VIEW / cam.zoom) / canvas.clientHeight;
+  const rx = Math.cos(cam.az), rz = -Math.sin(cam.az);      // screen-right on ground
+  const fx = -Math.sin(cam.az), fz = -Math.cos(cam.az);     // screen-up on ground
+  cam.target.x += (-rx * dx + fx * dy / Math.sin(EL)) * upp;
+  cam.target.z += (-rz * dx + fz * dy / Math.sin(EL)) * upp;
+  clampT(); cam.tGoal = null; shadowsDirty = true;
+}
+function zoomBy(f) { cam.zoomGoal = Math.max(0.32, Math.min(4.5, cam.zoomGoal * f)); }
+function focusOn(k, zoom) {
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const p = focusPos(k); cam.tGoal = new THREE.Vector3(p.x, 0, p.z);
+  const zMin = isPhone ? 0.95 : 1.4;
+  if (zoom) cam.zoomGoal = isPhone ? zoom * 0.7 : zoom; else if (cam.zoomGoal < zMin - 0.3) cam.zoomGoal = zMin;
+}
+const pointers = new Map(); let gesture = null;
+canvas.addEventListener('pointerdown', e => {
+  canvas.setPointerCapture(e.pointerId); pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (pointers.size === 1) gesture = { sx: e.clientX, sy: e.clientY, t: performance.now(), moved: 0 };
+  canvas.classList.add('dragging');
+});
+canvas.addEventListener('pointermove', e => {
+  if (!pointers.has(e.pointerId)) return;
+  const prev = pointers.get(e.pointerId);
+  if (pointers.size === 1) {
+    panBy(e.clientX - prev.x, e.clientY - prev.y);
+    if (gesture) gesture.moved += Math.abs(e.clientX - prev.x) + Math.abs(e.clientY - prev.y);
+  } else if (pointers.size === 2) {
+    const [a, b] = [...pointers.values()]; const other = a === prev ? b : a;
+    const d0 = Math.hypot(prev.x - other.x, prev.y - other.y), d1 = Math.hypot(e.clientX - other.x, e.clientY - other.y);
+    if (d0 > 0) { cam.zoom = cam.zoomGoal = Math.max(0.32, Math.min(4.5, cam.zoom * d1 / d0)); }
+    panBy((e.clientX - prev.x) / 2, (e.clientY - prev.y) / 2);
+    if (gesture) gesture.moved += 100;
+  }
+  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+});
+const endPtr = e => {
+  if (!pointers.has(e.pointerId)) return;
+  pointers.delete(e.pointerId);
+  if (pointers.size === 0) {
+    canvas.classList.remove('dragging');
+    if (gesture && gesture.moved < 8 && performance.now() - gesture.t < 400 && e.type === 'pointerup') pick3D(e.clientX, e.clientY);
+    gesture = null;
+  }
+};
+canvas.addEventListener('pointerup', endPtr); canvas.addEventListener('pointercancel', endPtr);
+canvas.addEventListener('wheel', e => { e.preventDefault(); zoomBy(Math.exp(-e.deltaY * 0.0016)); }, { passive: false });
+const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
+function pick3D(x, y) {
+  const r = canvas.getBoundingClientRect(); ndc.set(((x - r.left) / r.width) * 2 - 1, -((y - r.top) / r.height) * 2 + 1);
+  ray.setFromCamera(ndc, camera);
+  const hit = ray.intersectObjects(pickables, true)[0];
+  if (!hit) { document.getElementById('info').hidden = true; return; }
+  let o = hit.object; while (o && !o.userData.key) o = o.parent;
+  if (o) showInfo(o.userData.key);
+}
+function showInfo(k) {
+  const l = LANDMARKS[k]; if (!l) return;
+  document.getElementById('infoT').textContent = l.name; document.getElementById('infoP').textContent = l.info;
+  document.getElementById('info').hidden = false; A.play('click');
+}
+document.getElementById('infoX').onclick = () => { document.getElementById('info').hidden = true; };
+document.getElementById('rotL').onclick = () => { cam.azGoal -= Math.PI / 2; A.play('click'); };
+document.getElementById('rotR').onclick = () => { cam.azGoal += Math.PI / 2; A.play('click'); };
+document.getElementById('zIn').onclick = () => { zoomBy(1.35); A.play('click'); };
+document.getElementById('zOut').onclick = () => { zoomBy(1 / 1.35); A.play('click'); };
+window.addEventListener('keydown', e => {
+  if (e.target.closest && e.target.closest('input,textarea')) return;
+  const s = 40;
+  if (e.key === 'ArrowLeft') panBy(s, 0); else if (e.key === 'ArrowRight') panBy(-s, 0);
+  else if (e.key === 'ArrowUp') panBy(0, s); else if (e.key === 'ArrowDown') panBy(0, -s);
+  else if (e.key === '+' || e.key === '=') zoomBy(1.25); else if (e.key === '-') zoomBy(0.8);
+  else if (e.key === 'q' || e.key === 'Q') cam.azGoal -= Math.PI / 2; else if (e.key === 'e' || e.key === 'E') cam.azGoal += Math.PI / 2;
+});
+
+/* =====================================================================
+   TIME OF DAY + VISUAL STATE
+   ===================================================================== */
+const env = { tod: 0.56, todGoal: 0.56, snow: 0, snowGoal: 0, green: 0, greenGoal: 0, rain: 0, storm: 0, simRunning: false };
+const SKY = {
+  day: [new THREE.Color(0x5fa9de), new THREE.Color(0xcfe6f2)],
+  dusk: [new THREE.Color(0x34508f), new THREE.Color(0xf2a36a)],
+  night: [new THREE.Color(0x060c1c), new THREE.Color(0x18264a)],
+  storm: [new THREE.Color(0x4a5566), new THREE.Color(0x8e98a6)],
+};
+const sunDir = new THREE.Vector3(), cTop = new THREE.Color(), cBot = new THREE.Color();
+const sunWarm = new THREE.Color(0xffb070), sunWhite = new THREE.Color(0xfff2dc);
+function applyTime() {
+  const th = (env.tod - 0.25) * Math.PI * 2;
+  const elev = Math.sin(th);
+  sunDir.set(Math.cos(th), Math.max(0.05, elev), 0.5).normalize();
+  const day = THREE.MathUtils.smoothstep(elev, -0.12, 0.25);
+  const dusk = Math.max(0, 1 - Math.abs(elev - 0.02) / 0.22) * 0.9;
+  U.uNight.value = 1 - THREE.MathUtils.smoothstep(elev, -0.05, 0.18);
+  sun.intensity = 2.5 * day * (1 - env.storm * 0.55);
+  sun.color.copy(sunWhite).lerp(sunWarm, Math.min(1, dusk * 1.1));
+  hemi.intensity = 0.35 + 0.95 * day;
+  hemi.color.setRGB(0.55 + 0.35 * day, 0.62 + 0.32 * day, 0.85 + 0.15 * day);
+  cTop.copy(SKY.night[0]).lerp(SKY.day[0], day).lerp(SKY.dusk[0], dusk * 0.6).lerp(SKY.storm[0], env.storm * day * 0.8);
+  cBot.copy(SKY.night[1]).lerp(SKY.day[1], day).lerp(SKY.dusk[1], dusk).lerp(SKY.storm[1], env.storm * day * 0.8);
+  document.documentElement.style.setProperty('--sky-top', '#' + cTop.getHexString());
+  document.documentElement.style.setProperty('--sky-bot', '#' + cBot.getHexString());
+  const lightsOn = U.uNight.value;
+  carMat.emissive.setRGB(0.35 * lightsOn, 0.3 * lightsOn, 0.2 * lightsOn);
+  trainMat.emissive.setRGB(0.4 * lightsOn, 0.36 * lightsOn, 0.25 * lightsOn);
+}
+let lastSunKey = '';
+function updateSun() {
+  sun.target.position.copy(cam.target);
+  sun.position.copy(cam.target).addScaledVector(sunDir, 80);
+  const half = (VIEW / cam.zoom) * Math.max(1, camera.right / (VIEW / 2)) * 0.75 + 2;
+  const sc = sun.shadow.camera;
+  const key = [half.toFixed(1), sunDir.x.toFixed(3), sunDir.y.toFixed(3), cam.target.x.toFixed(2), cam.target.z.toFixed(2), cam.az.toFixed(3)].join();
+  if (key !== lastSunKey) {
+    sc.left = -half; sc.right = half; sc.top = half; sc.bottom = -half; sc.near = 1; sc.far = 220; sc.updateProjectionMatrix();
+    lastSunKey = key; shadowsDirty = true;
+  }
+}
+
+let calcNow = compute();
+function applyVisuals(cc = calcNow, extra = {}) {
+  const m = cc.m, ch = state.choice;
+  U.uLit.value = 0.18 + (m.business / 100) * 0.62;
+  const nCr = Math.max(0, Math.min(cranes.length, Math.round((m.business - 38) / 4.5)));
+  cranes.forEach((c, i) => { c.visible = i < nCr; });
+  const nPol = Math.max(0, Math.min(policeLights.length, Math.round((66 - m.safety) / 1.6)));
+  policeLights.forEach((p, i) => { p.visible = i < nPol; });
+  trashMesh.count = Math.max(0, Math.min(60, Math.round((64 - m.services) * 2.2)));
+  signMesh.count = Math.max(0, Math.min(60, ch.prop * 14 + Math.max(0, Math.round((56 - m.affordability) * 1.2))));
+  vans.visibleN = Math.max(0, Math.min(12, Math.round((60 - m.affordability) / 3) + (ch.head ? 3 : 0)));
+  peopleMesh.count = Math.max(30, Math.min(PEOPLE_N, Math.round(40 + m.safety * 1.4 + (ch.youth ? 50 : 0) + (extra.crowd || 0))));
+  school.forEach(s => { s.visibleN = ch.tif ? 2 : 1; });
+  busLane.visible = !!ch.cam; buses.mult = ch.cam ? 1.8 : 1;
+  libGlowMat.opacity = ch.lib ? 0.18 : 0;
+  const debt = (ch.borrow ? 1 : 0) + (ch.pension === 2 ? 0.6 : ch.pension === 1 ? 0.3 : 0);
+  balloon.userData.goal = debt ? 0.45 + debt * 0.45 : 0.001;
+  balloon.visible = true;
+  env.rain = Math.max(0, Math.min(1, (36 - m.fiscal) / 18));
+  shadowsDirty = true;
+}
+
+/* =====================================================================
+   UI: HUD, meters, console
+   ===================================================================== */
+const $ = id => document.getElementById(id);
+const svgI = d => `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${d}"/></svg>`;
+$('meters').innerHTML = METERS.map(m => `<div class="meter" id="m-${m.k}"><div class="mh">${svgI(m.icon)}<span>${m.l}</span><em>0</em></div><div class="bar"><i></i></div></div>`).join('') +
+  `<div class="meter votes" id="m-votes"><div class="mh">${svgI(VOTE_ICON)}<span>Need 26</span></div><div class="chip-val" id="votesV">32 yes</div></div>` +
+  `<div class="meter" id="m-credit"><div class="mh">${svgI(CREDIT_ICON)}<span>Credit</span></div><div class="chip-val" id="creditV">Negative</div></div>`;
+$('tabs').innerHTML = CATS.map(c => `<button class="tab" role="tab" id="tab-${c.k}" data-k="${c.k}" aria-selected="${c.k === state.tab}"><b>${c.l}</b><small id="tabv-${c.k}">$0</small></button>`).join('');
+$('tabs').addEventListener('click', e => { const b = e.target.closest('.tab'); if (!b) return; state.tab = b.dataset.k; A.play('click'); renderLevers(); if ($('panel').classList.contains('collapsed')) toggleSheet(false); });
+
+const meterName = { safety: 'Safety', services: 'Services', affordability: 'Afford', business: 'Business', fiscal: 'Fiscal' };
+const meterIcon = Object.fromEntries(METERS.map(m => [m.k, m.icon]));
+function fxChips(o) {
+  const out = [];
+  for (const k in o.fx) { const d = o.fx[k]; if (!d) continue; const n = Math.abs(d) >= 10 ? 3 : Math.abs(d) >= 5 ? 2 : 1; out.push(`<span class="fxc ${d > 0 ? 'up' : 'down'}">${svgI(meterIcon[k])}${meterName[k]} ${(d > 0 ? '▲' : '▼').repeat(n)}</span>`); }
+  if (o.v) out.push(`<span class="fxc ${o.v > 0 ? 'up' : 'down'}">${svgI(VOTE_ICON)}Votes ${o.v > 0 ? '+' : '−'}${Math.abs(o.v)}</span>`);
+  return out.join('');
+}
+function amtHTML(a) { return `<span class="amt ${a > 0 ? 'pos' : a < 0 ? 'neg' : 'zero'}">${a ? sgnM(a) : '$0'}</span>`; }
+function renderLevers() {
+  document.querySelectorAll('.tab').forEach(t => t.setAttribute('aria-selected', t.dataset.k === state.tab));
+  const cat = CATS.find(c => c.k === state.tab);
+  const html = [`<p class="cat-note">${cat.note}</p>`];
+  for (const l of LEVERS.filter(l => l.cat === state.tab)) {
+    const ci = state.choice[l.id], o = l.opts[ci], showA = l.toggle ? l.opts[1].a : o.a;
+    const on = l.toggle ? ci === 1 : ci !== 0;
+    const ctl = l.toggle
+      ? `<button class="sw" role="switch" aria-checked="${on}" data-id="${l.id}" aria-label="${l.name}"><span class="knob"></span><span class="sw-l">${on ? 'ON' : 'OFF'}</span></button>`
+      : `<div class="seg" role="group" aria-label="${l.name}">${l.opts.map((op, i) => `<button data-id="${l.id}" data-i="${i}" aria-pressed="${i === ci}">${op.l}</button>`).join('')}</div>`;
+    const fxO = l.toggle ? l.opts[1] : (ci ? o : l.opts[l.opts.length - 1]);
+    html.push(`<article class="lever ${on ? 'on' : ''}" id="lv-${l.id}">
+      <div class="lv-top"><h3>${l.name}</h3>${amtHTML(showA)}</div>
+      <p class="lv-sub">${l.sub}</p>
+      <div class="lv-row">${ctl}<div class="fx">${fxChips(fxO)}</div></div>
+      <div class="lv-row">${l.est ? '<span class="tag est">Game estimate</span>' : ''}${l.rec ? '' : '<span class="tag once">One-time</span>'}${l.debt ? `<span class="tag once">Adds ~$${l.debt}M/yr later</span>` : ''}</div>
+      <details><summary>Why and sources</summary><p>${l.why}</p><ul class="srcs">${l.src.map(s => `<li><a href="${SRC[s].u}" target="_blank" rel="noopener">${SRC[s].t}</a></li>`).join('')}</ul></details>
+    </article>`);
+  }
+  $('levers').innerHTML = html.join('');
+}
+$('levers').addEventListener('click', e => {
+  const sw = e.target.closest('.sw'), sb = e.target.closest('.seg button');
+  if (sw) setChoice(sw.dataset.id, state.choice[sw.dataset.id] ? 0 : 1);
+  else if (sb) setChoice(sb.dataset.id, +sb.dataset.i);
+});
+
+let shownGap = START_GAP, gapAnim = null;
+function animateGap(to) {
+  const from = shownGap; const t0 = performance.now(); cancelAnimationFrame(gapAnim);
+  const step = () => { const k = Math.min(1, (performance.now() - t0) / 500); shownGap = from + (to - from) * (1 - Math.pow(1 - k, 3)); drawGap(shownGap); if (k < 1) gapAnim = requestAnimationFrame(step); };
+  step();
+  $('gapBox').classList.remove('bump'); void $('gapBox').offsetWidth; $('gapBox').classList.add('bump');
+}
+function drawGap(g) {
+  const ok = g <= 0.05;
+  $('gapBox').classList.toggle('ok', ok);
+  $('gapLabel').textContent = ok ? (g < -0.05 ? '2027 surplus' : 'Balanced') : '2027 budget gap';
+  $('gapVal').textContent = ok ? '+' + fmtM(-g) : '−' + fmtM(g);
+}
+let lastM = null;
+function updateHUD(cc = calcNow, flash = false) {
+  for (const k in cc.m) {
+    const v = cc.m[k], el = $('m-' + k); if (!el) continue;
+    el.querySelector('em').textContent = v;
+    const bar = el.querySelector('.bar i'); bar.style.width = v + '%';
+    bar.style.backgroundColor = v >= 55 ? 'var(--good)' : v >= 38 ? 'var(--warn)' : 'var(--bad)';
+    if (flash && lastM && lastM[k] !== v) { el.classList.remove('flash-up', 'flash-down'); void el.offsetWidth; el.classList.add(v > lastM[k] ? 'flash-up' : 'flash-down'); setTimeout(() => el.classList.remove('flash-up', 'flash-down'), 700); }
+  }
+  lastM = { ...cc.m };
+  const vv = $('votesV'); vv.textContent = `${cc.votes} yes`; vv.className = 'chip-val ' + (cc.votes >= 26 ? 'good' : 'bad');
+  const cr = credit(cc.m.fiscal); const cv = $('creditV'); cv.textContent = cr.l; cv.style.color = `var(--${cr.c})`;
+  for (const c of CATS) { const s = LEVERS.filter(l => l.cat === c.k).reduce((a, l) => a + l.opts[state.choice[l.id]].a, 0); const el = $('tabv-' + c.k); el.textContent = s ? sgnM(s) : '$0'; el.className = s > 0 ? 'pos' : s < 0 ? 'neg' : ''; }
+  const send = $('send');
+  if (cc.gap > 0.05) { send.disabled = true; $('need').innerHTML = `Close <b>${fmtM(cc.gap)}</b> more. Illinois cities must pass a balanced budget.`; }
+  else { send.disabled = false; $('need').innerHTML = `Balanced. You have about <b>${cc.votes}</b> likely votes; you need <b>26</b>.`; }
+}
+function setChoice(id, i, quiet = false) {
+  const l = LV[id]; const prev = state.choice[id]; if (prev === i) return;
+  const before = calcNow;
+  state.choice[id] = i; calcNow = compute();
+  const delta = l.opts[i].a - l.opts[prev].a;
+  if (!quiet) {
+    if (delta !== 0) floatText(sgnM(delta), l.focus, delta > 0 ? 'pos' : 'neg');
+    if (i === 0 && l.toggle) A.play('undo');
+    else if (l.cat === 'rev') A.play('cash');
+    else if (l.cat === 'cut') A.play('chop');
+    else if (l.cat === 'once') A.play('whoosh');
+    else A.play('sparkle');
+    focusOn(l.focus);
+    for (const k in calcNow.m) if (calcNow.m[k] < 30 && before.m[k] >= 30) { setTimeout(() => A.play('warn'), 250); toast(`${meterName[k]} is in the danger zone.`, 'bad'); }
+  }
+  renderLevers(); updateHUD(calcNow, true); animateGap(calcNow.gap); applyVisuals();
+  if (calcNow.gap <= 0.05 && !state.balancedOnce && !quiet) {
+    state.balancedOnce = true; setTimeout(() => { A.play('fanfare'); fireworksShow(5); toast('Budget balanced! Now send it to the City Council.', 'good'); }, 300);
+  }
+}
+let toastT;
+function toast(msg, cls = '') { const t = $('toast'); t.textContent = msg; t.className = cls; t.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => { t.hidden = true; }, 3200); }
+
+function toggleSheet(force) {
+  const p = $('panel'); const c = force ?? !p.classList.contains('collapsed');
+  p.classList.toggle('collapsed', c); A.play('click'); requestAnimationFrame(resize);
+}
+$('handle').onclick = () => toggleSheet();
+$('preReset').onclick = () => { LEVERS.forEach(l => { state.choice[l.id] = 0; }); state.balancedOnce = false; calcNow = compute(); renderLevers(); updateHUD(calcNow, true); animateGap(calcNow.gap); applyVisuals(); A.play('undo'); toast('Back to the September forecast: $882.4M gap.'); };
+$('preMayor').onclick = () => {
+  Object.assign(state.choice, MAYOR_PLAN); calcNow = compute(); renderLevers(); updateHUD(calcNow, true); animateGap(calcNow.gap); applyVisuals(); A.play('coin');
+  toast(`Loaded the mayor’s Oct. 2026 proposal. In this game it leaves ${fmtM(calcNow.gap)}; his plan covers that with items we don’t model.`);
+};
+
+// music / sfx / night / labels / sources buttons
+$('btnMusic').onclick = () => { A.musicOn = !A.musicOn; $('btnMusic').setAttribute('aria-pressed', A.musicOn); if (A.musicOn) Music.start(); };
+$('btnSfx').onclick = () => { A.sfxOn = !A.sfxOn; $('btnSfx').setAttribute('aria-pressed', A.sfxOn); if (A.humG) A.humG.gain.value = A.sfxOn ? 0.05 : 0; A.play('click'); };
+$('btnNight').onclick = () => { const n = env.todGoal > 0.7; env.todGoal = n ? 0.56 : 0.86; $('btnNight').setAttribute('aria-pressed', !n); A.play('click'); };
+$('btnLabels').onclick = () => { labelsOn = !labelsOn; $('btnLabels').setAttribute('aria-pressed', labelsOn); A.play('click'); };
+$('srcList').innerHTML = Object.values(SRC).map(s => `<li><a href="${s.u}" target="_blank" rel="noopener">${s.t}</a></li>`).join('');
+$('btnSources').onclick = () => { $('sources').hidden = false; A.play('click'); };
+$('srcClose').onclick = () => { $('sources').hidden = true; A.play('click'); };
+
+/* =====================================================================
+   GAME FLOW: intro → plan → council → simulate → report
+   ===================================================================== */
+$('start').onclick = () => {
+  A.init(); A.play('start'); if (A.musicOn) Music.start();
+  $('intro').hidden = true; state.phase = 'plan';
+  cam.zoomGoal = isPhone ? 0.8 : 1.25; cam.tGoal = new THREE.Vector3(-0.5, 0, 1.0);
+  setTimeout(() => toast('Tap a tab, then flip switches to close the gap. Tap any landmark to learn about it.'), 600);
+};
+document.addEventListener('visibilitychange', () => { if (!A.ctx) return; if (document.hidden) A.ctx.suspend(); else A.ctx.resume(); });
+
+// council hemicycle
+const SEATS = [];
+{
+  const rows = [8, 11, 14, 17]; let html = '';
+  rows.forEach((n, r) => { const rad = 80 + r * 38; for (let i = 0; i < n; i++) { const a = Math.PI - (i / (n - 1)) * Math.PI; SEATS.push([210 + Math.cos(a) * rad, 210 - Math.sin(a) * rad, a]); } });
+  SEATS.sort((a, b) => b[2] - a[2]);
+  html = SEATS.map(([x, y], i) => `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="11" id="seat${i}"/>`).join('');
+  html += `<rect x="186" y="196" width="48" height="22" rx="4" fill="#e8253a"/><text x="210" y="211" text-anchor="middle" font-size="11" font-weight="800" fill="#fff" font-family="Chivo, sans-serif">CHAIR</text>`;
+  $('hemi').innerHTML = html;
+}
+$('send').onclick = () => runVote();
+function runVote() {
+  if (calcNow.gap > 0.05) { A.play('error'); return; }
+  state.phase = 'vote'; A.play('gavel');
+  focusOn('cityhall', 2.2);
+  $('council').hidden = false; $('verdict').textContent = ''; $('verdict').className = 'verdict'; $('foes').hidden = true; $('councilBtns').innerHTML = '';
+  SEATS.forEach((s, i) => { $('seat' + i).setAttribute('class', ''); });
+  const ayes = Math.max(0, Math.min(50, calcNow.votes + Math.round(R(-2, 2))));
+  const order = [...Array(50).keys()].sort(() => rnd() - 0.5);
+  const ayeSet = new Set(order.slice(0, ayes));
+  let i = 0, a = 0, n = 0; $('ayeN').textContent = 0; $('nayN').textContent = 0;
+  const tick = () => {
+    if (i >= 50) return finishVote(a >= 26, a, n);
+    const yes = ayeSet.has(i); $('seat' + i).setAttribute('class', yes ? 'aye' : 'nay');
+    if (yes) { a++; A.play('aye'); } else { n++; A.play('nay'); }
+    $('ayeN').textContent = a; $('nayN').textContent = n; i++;
+    setTimeout(tick, 55);
+  };
+  setTimeout(tick, 500);
+}
+function finishVote(pass, a, n) {
+  A.play('gavel');
+  const v = $('verdict');
+  if (pass) {
+    v.textContent = `Passed ${a}–${n}`; v.className = 'verdict pass'; setTimeout(() => A.play('fanfare'), 200); fireworksShow(4, focusPos('cityhall'));
+    $('councilBtns').innerHTML = `<button class="cta alt" id="vBack">Keep editing</button><button class="cta" id="vSim">Run 2027 ▸</button>`;
+    $('vSim').onclick = startSim; $('vBack').onclick = () => { $('council').hidden = true; state.phase = 'plan'; };
+  } else {
+    v.textContent = `Failed ${a}–${n}`; v.className = 'verdict fail'; setTimeout(() => A.play('fail'), 200);
+    const costly = LEVERS.map(l => ({ l, v: l.opts[state.choice[l.id]].v })).filter(x => x.v < 0).sort((x, y) => x.v - y.v).slice(0, 3);
+    $('foes').hidden = false;
+    $('foes').innerHTML = costly.length ? `Alderpeople balked at: ${costly.map(x => `<b>${x.l.name}</b> (−${Math.abs(x.v)} votes)`).join(', ')}. Swap something out, or add spending that wins votes.` : 'Too many alderpeople were skeptical. Try a different mix.';
+    $('councilBtns').innerHTML = `<button class="cta alt" id="vBack">Rework the budget</button>`;
+    $('vBack').onclick = () => { $('council').hidden = true; state.phase = 'plan'; };
+  }
+}
+
+// simulation
+const MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+const sim = { m: -1, t: 0, dur: 3.4, fx: {}, events: [], election: null };
+function monthEvent(mi) {
+  const cc = compute(state.choice, sim.fx), m = cc.m, ch = state.choice;
+  switch (mi) {
+    case 0: env.snowGoal = 1; return m.services >= 55 ? { h: 'Polar vortex: plows clear main streets overnight', fx: { services: 1 } } : { h: 'Polar vortex: side streets stay buried for days', fx: { services: -3, affordability: -1 } };
+    case 1: {
+      const appr = (m.safety + m.services + m.affordability + m.business) / 4 - ch.prop * 2;
+      sim.election = appr >= 60 ? 'won outright' : appr >= 50 ? 'forced into an April runoff' : 'lost';
+      return { h: appr >= 60 ? 'Election night: voters re-elect you without a runoff' : appr >= 50 ? 'Election night: no majority, so you head to an April runoff' : 'Election night: you miss the runoff', fx: {} };
+    }
+    case 2: env.snowGoal = 0; env.greenGoal = 1; return { h: 'The river turns green for the St. Patrick’s Day parade', fx: {} };
+    case 3: env.greenGoal = 0; return ch.layoff ? { h: '311 backlog grows after layoffs; potholes linger', fx: { services: -3 } } : ch.cam ? { h: 'Bus lane cameras: Michigan Avenue buses run faster', fx: { services: 2 } } : { h: 'Pothole season: crews fan out across the city', fx: {} };
+    case 4: return m.business < 52 ? { h: 'Major employer announces a move to the suburbs, citing taxes', fx: { business: -4 } } : m.business >= 64 ? { h: 'Tech firm expands in Fulton Market and adds jobs', fx: { business: 3 } } : { h: 'Downtown office vacancies hold steady', fx: {} };
+    case 5: return ch.youth ? { h: 'Thousands of teens start summer jobs', fx: { safety: 2 } } : { h: 'Fewer summer jobs for teens this year', fx: { safety: -2 } };
+    case 6: return m.safety >= 52 ? { h: 'Big Grant Park music festival weekend goes smoothly', fx: { business: 1 }, crowd: 120 } : { h: 'Violent holiday weekend drives up police overtime', fx: { safety: -3, fiscal: -2 } };
+    case 7: return m.fiscal < 28 ? { h: 'Ratings agency downgrades Chicago’s credit', fx: { fiscal: -5, business: -2 } } : m.fiscal < 46 ? { h: 'Ratings agency keeps Chicago on a negative outlook', fx: { fiscal: -1 } } : { h: 'Ratings agency revises Chicago’s outlook to stable', fx: { fiscal: 3 } };
+    case 8: return ch.lib ? { h: 'Libraries extend hours and branch visits climb', fx: { services: 2 } } : ch.layoff === 2 ? { h: 'Fewer inspectors on duty after layoffs', fx: { services: -2 } } : { h: 'Back to school: CPS opens with its own budget hole', fx: {} };
+    case 9: return ch.borrow ? { h: 'Settlement bonds add to the city’s interest costs', fx: { fiscal: -2 } } : { h: 'Misconduct settlement payouts squeeze the budget', fx: { fiscal: -3 } };
+    case 10: return { h: `2028 forecast: a projected gap of about $${compute(state.choice).gap28}M`, fx: {} };
+    case 11: { env.snowGoal = 0.7; const s = score(); return s >= 60 ? { h: 'Fireworks over Navy Pier close out 2027', fx: {}, fw: true } : { h: 'Snow falls on a city bracing for another tight budget', fx: {} }; }
+  }
+}
+function score(cc = compute(state.choice, sim.fx)) { const m = cc.m; return Math.round((m.safety + m.services + m.affordability + m.business + m.fiscal) / 5); }
+function startSim() {
+  $('council').hidden = true; state.phase = 'sim';
+  $('panel').classList.add('away'); $('info').hidden = true; resize();
+  sim.m = -1; sim.t = sim.dur; sim.fx = {}; sim.events = []; sim.election = null; env.simRunning = true;
+  Music.hot = true; Music.tempo = 132;
+  $('simbar').hidden = false; cam.tGoal = new THREE.Vector3(-1, 0, 0); cam.zoomGoal = isPhone ? 0.65 : 0.9;
+}
+function nextMonth() {
+  sim.m++;
+  if (sim.m >= 12) return endSim();
+  const ev = monthEvent(sim.m);
+  for (const k in ev.fx) sim.fx[k] = (sim.fx[k] || 0) + ev.fx[k];
+  sim.events.push({ mo: MONTHS[sim.m], h: ev.h });
+  const cc = compute(state.choice, sim.fx);
+  updateHUD(cc, true); applyVisuals(cc, { crowd: ev.crowd || 0 });
+  $('simMonth').innerHTML = `${MONTHS[sim.m]}<small>2027</small>`;
+  const n = $('simNews'); n.innerHTML = `<i>SIMULATED</i>${ev.h}`; n.classList.remove('in'); void n.offsetWidth; n.classList.add('in');
+  A.play('month');
+  if (ev.fw) fireworksShow(8);
+  if (sim.m === 1) setTimeout(() => A.play(sim.election === 'lost' ? 'fail' : 'fanfare'), 400);
+}
+$('simSkip').onclick = () => { while (sim.m < 11) { sim.m++; const ev = monthEvent(sim.m); for (const k in ev.fx) sim.fx[k] = (sim.fx[k] || 0) + ev.fx[k]; sim.events.push({ mo: MONTHS[sim.m], h: ev.h }); } endSim(); };
+function updateSim(dt) {
+  if (!env.simRunning) return;
+  sim.t += dt;
+  env.tod = ((sim.m + Math.min(1, sim.t / sim.dur)) * 1.0 + 0.3) % 1;
+  env.todGoal = env.tod;
+  $('simProg').style.width = (Math.max(0, sim.m + Math.min(1, sim.t / sim.dur)) / 12 * 100) + '%';
+  if (sim.t >= sim.dur) { sim.t = 0; nextMonth(); }
+}
+function endSim() {
+  env.simRunning = false; Music.hot = false; Music.tempo = 112;
+  env.todGoal = 0.56; env.tod = 0.56; env.snowGoal = 0; env.greenGoal = 0;
+  $('simbar').hidden = true; state.phase = 'report';
+  const cc = compute(state.choice, sim.fx);
+  updateHUD(cc); applyVisuals(cc);
+  showReport(cc);
+}
+function gradeOf(s) { return s >= 68 ? 'A' : s >= 61 ? 'B' : s >= 54 ? 'C' : s >= 46 ? 'D' : 'F'; }
+function titleOf(cc) {
+  const ch = state.choice, s = score(cc);
+  if (ch.borrow && ch.pension === 2) return ['Kick-the-Can Champion', 'You balanced 2027 by borrowing and skipping the pension payment. 2028 will remember.'];
+  if (ch.prop >= 2) return ['Bungalow Belt Buster', 'Homeowners footed a big share of the bill.'];
+  if (ch.head && ch.pplt && !ch.borrow) return ['Fair-Share Firebrand', 'You leaned on corporations to pay for the city.'];
+  if (ch.cpd && ch.layoff) return ['Budget Hawk of the Lakefront', 'You cut deep to make the numbers work.'];
+  if (s >= 62) return ['Lakefront Legend', 'A balanced budget that kept the city humming.'];
+  return ['Second City Survivor', 'You made it through. Next year’s gap is already waiting.'];
+}
+function showReport(cc) {
+  const s = score(cc), g = gradeOf(s), [tt, ts] = titleOf(cc), cr = credit(cc.m.fiscal);
+  const mayor = compute(MAYOR_PLAN);
+  const rows = LEVERS.map(l => {
+    const you = l.opts[state.choice[l.id]], his = l.opts[MAYOR_PLAN[l.id]];
+    const lbl = (o, i) => l.toggle ? (i ? sgnM(o.a) : '—') : (o.l + (o.a ? ` (${sgnM(o.a)})` : ''));
+    const same = state.choice[l.id] === MAYOR_PLAN[l.id];
+    return `<tr><td>${l.name}</td><td class="${same ? 'same' : ''}">${lbl(you, state.choice[l.id])}</td><td>${lbl(his, MAYOR_PLAN[l.id])}</td></tr>`;
+  }).join('');
+  $('reportCard').innerHTML = `
+    <div class="eyebrow">Year in review · 2027</div>
+    <div class="grade"><div class="big">${g}</div><div class="ttl">${tt}<small>${ts}</small></div></div>
+    <div class="rgrid">
+      ${METERS.map(m => `<div>${m.l}<b>${cc.m[m.k]}</b></div>`).join('')}
+      <div>Credit outlook<b style="color:var(--${cr.c})">${cr.l}</b></div>
+      <div>Election<b>${sim.election === 'won outright' ? 'Re-elected' : sim.election === 'lost' ? 'Lost' : 'Runoff'}</b></div>
+      <div>Projected 2028 gap<b>${fmtM(cc.gap28)}</b></div>
+    </div>
+    <p class="fine">The city’s forecast projects a $943M gap in 2028 before any fixes. Recurring revenue and cuts shrink it; investments and new debt payments grow it.</p>
+    <h3>Your simulated year</h3>
+    <ol class="headlines">${sim.events.map(e => `<li><b>${e.mo}</b> ${e.h}</li>`).join('')}</ol>
+    <h3>You vs. the mayor’s proposal</h3>
+    <div class="tbl-wrap"><table class="cmp"><thead><tr><th>Choice</th><th>You</th><th>Mayor (Oct. 2026)</th></tr></thead><tbody>${rows}</tbody></table></div>
+    <p class="fine">In this game the mayor’s choices close ${fmtM(mayor.closed)} of the gap, leaving ${fmtM(mayor.gap)} that his plan covers with measures we don’t model. The City Council can change the proposal before it passes a final budget. Source: <a href="${SRC.w1020.u}" target="_blank" rel="noopener">WTTW, Oct. 20, 2026</a>.</p>
+    <div class="row-end"><button class="cta alt" id="rEdit">Tweak this budget</button><button class="cta" id="rAgain">Start over</button></div>`;
+  $('report').hidden = false;
+  if (s >= 54) { A.play('fanfare'); fireworksShow(6); } else A.play('fail');
+  $('rEdit').onclick = () => { $('report').hidden = true; backToPlan(); };
+  $('rAgain').onclick = () => { $('report').hidden = true; $('preReset').onclick(); backToPlan(); };
+}
+function backToPlan() { state.phase = 'plan'; sim.fx = {}; calcNow = compute(); updateHUD(calcNow); applyVisuals(); $('panel').classList.remove('away'); requestAnimationFrame(resize); }
+
+/* =====================================================================
+   LOOP
+   ===================================================================== */
+const clock = new THREE.Clock();
+let dingT = 25, thunderT = 8, shadowFrame = 0;
+function frame() {
+  const dt = Math.min(0.05, clock.getDelta()); const t = clock.elapsedTime;
+  U.uTime.value = t;
+  // camera easing
+  let moved = false;
+  if (Math.abs(cam.azGoal - cam.az) > 1e-4) { cam.az += (cam.azGoal - cam.az) * Math.min(1, dt * 7); moved = true; }
+  if (Math.abs(cam.zoomGoal - cam.zoom) > 1e-4) { cam.zoom += (cam.zoomGoal - cam.zoom) * Math.min(1, dt * 8); moved = true; }
+  if (cam.tGoal) { cam.target.lerp(cam.tGoal, Math.min(1, dt * 3.5)); moved = true; if (cam.target.distanceTo(cam.tGoal) < 0.01) cam.tGoal = null; clampT(); }
+  if (moved) applyCamera(); else applyCamera();
+  // environment
+  updateSim(dt);
+  if (!env.simRunning && Math.abs(env.todGoal - env.tod) > 0.001) env.tod += (env.todGoal - env.tod) * Math.min(1, dt * 1.5);
+  env.snow += (env.snowGoal - env.snow) * Math.min(1, dt * 1.2); U.uSnow.value = env.snow;
+  env.green += (env.greenGoal - env.green) * Math.min(1, dt * 1.5);
+  riverMat.color.copy(RIVER_BASE).lerp(RIVER_GREEN, env.green);
+  parkMat.color.copy(PARK_C).lerp(SNOW_C, env.snow * 0.85);
+  treeMat.color.setRGB(1, 1, 1).lerp(SNOW_C, env.snow * 0.5);
+  env.storm += ((env.rain > 0 ? 0.4 + env.rain * 0.6 : 0) - env.storm) * Math.min(1, dt * 1.2);
+  stormMat.opacity = env.storm * 0.95; storm.visible = env.storm > 0.02;
+  applyTime(); updateSun();
+  // rain
+  rain.visible = env.rain > 0.02; rain.material.opacity = 0.55 * env.rain;
+  if (rain.visible) { for (let i = 0; i < RAIN_N; i++) { let y = rainPos[i * 6 + 1] - dt * 7; if (y < 0) y += 6; rainPos[i * 6 + 1] = y; rainPos[i * 6 + 4] = y - 0.25; } rainGeo.attributes.position.needsUpdate = true; rain.position.set(cam.target.x > -6 && cam.target.x < 4 ? 0 : -1, G, 0); thunderT -= dt; if (thunderT < 0 && env.rain > 0.4) { thunderT = R(6, 14); $('flash').style.transition = 'none'; $('flash').style.opacity = 0.5; requestAnimationFrame(() => { $('flash').style.transition = 'opacity .5s'; $('flash').style.opacity = 0; }); setTimeout(() => A.play('thunder'), 250); } }
+  snow.visible = env.snow > 0.05; snow.material.opacity = env.snow;
+  if (snow.visible) { for (let i = 0; i < SNOW_N; i++) { let y = snowPos[i * 3 + 1] - dt * 0.8; if (y < 0) y += 8; snowPos[i * 3 + 1] = y; snowPos[i * 3] += Math.sin(t + i) * dt * 0.05; } snowGeo.attributes.position.needsUpdate = true; snow.position.set(cam.target.x, G, cam.target.z); }
+  // animated bits
+  wheel.rotation.z -= dt * 0.12;
+  fountainJet.scale.y = 0.25 + Math.sin(t * 2.2) * 0.06 + (env.snow > 0.5 ? -0.2 : 0);
+  cranes.forEach(c => { if (c.visible) c.userData.jib.rotation.y += dt * c.userData.spd; });
+  policeLights.forEach(p => { if (!p.visible) return; const on = Math.sin(t * 9 + p.userData.ph) > 0; p.userData.r.visible = on; p.userData.b.visible = !on; });
+  clouds.forEach(c => { c.position.x += c.userData.v * dt; if (c.position.x > 26) c.position.x = -34; });
+  sails.forEach(s => { s.position.y = 0.02 + Math.sin(t * 1.5 + s.userData.ph) * 0.008; s.rotation.z = Math.sin(t + s.userData.ph) * 0.06; });
+  if (LANDMARKS.cityhall.flag) LANDMARKS.cityhall.flag.rotation.y = Math.sin(t * 3) * 0.25;
+  const bg = balloon.userData.goal ?? 0.001; const bs = balloon.scale.x + (bg - balloon.scale.x) * Math.min(1, dt * 2); balloon.scale.setScalar(bs); balloon.visible = bs > 0.01; balloon.position.y = 2.4 + bs * 0.9 + Math.sin(t * 1.2) * 0.06; balloon.rotation.y += dt * 0.2;
+  libGlowMat.color.setHSL(0.12, 1, 0.6 + Math.sin(t * 2) * 0.1);
+  updateMovers(dt); updatePeople(dt); updateFireworks(dt);
+  if (A.ctx && A.sfxOn && state.phase !== 'intro') { dingT -= dt; if (dingT < 0) { dingT = R(30, 55); A.play('ding'); } }
+  // shadows: only re-render when the view or sun changes
+  shadowFrame++;
+  if (shadowsDirty || (env.simRunning && shadowFrame % 6 === 0)) { renderer.shadowMap.needsUpdate = true; shadowsDirty = false; }
+  renderer.render(scene, camera);
+  updateLabels();
+  requestAnimationFrame(frame);
+}
+
+/* ---------- boot ---------- */
+renderLevers(); updateHUD(calcNow); drawGap(START_GAP); applyVisuals();
+window.addEventListener('resize', resize);
+if (window.ResizeObserver) new ResizeObserver(() => resize()).observe($('panel'));
+resize();
+$('loading').remove();
+requestAnimationFrame(frame);
+</script>
+
+</body>
+</html>
