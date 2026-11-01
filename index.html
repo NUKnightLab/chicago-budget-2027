@@ -47,15 +47,7 @@ h1 { font-weight: 700; font-size: clamp(36px, 7vw, 64px); line-height: 1.04; let
 .facts div { padding: 18px 12px; text-align: center; font-family: var(--sans); font-size: 13px; color: var(--muted); line-height: 1.4; }
 .facts div + div { border-left: 1px solid var(--rule); }
 .facts b { display: block; font-family: var(--serif); font-size: 28px; color: var(--ink); font-weight: 700; margin-bottom: 2px; font-variant-numeric: lining-nums; }
-.range { padding-block: 32px 0; }
-.range-bar { position: relative; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 28px; font-family: var(--sans); }
-.range-bar::before { content: ""; position: absolute; left: 0; right: 0; top: 7px; height: 3px; background: linear-gradient(90deg, #c9c9c9, var(--flag-blue), var(--flag-red)); border-radius: 2px; }
-.range-bar div { position: relative; padding-top: 22px; font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
-.range-bar div::before { content: ""; position: absolute; left: 0; top: 0; width: 17px; height: 17px; border-radius: 50%; background: var(--paper); border: 3px solid var(--ink); }
-.range-bar div:nth-child(2)::before { border-color: #1f8fc4; }
-.range-bar div:nth-child(3)::before { border-color: var(--flag-red); }
-.range-ends { display: flex; justify-content: space-between; font-family: var(--sans); font-size: 12px; color: var(--muted); margin-bottom: 10px; }
-.cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 28px; padding-block: 16px 24px; }
+.cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 28px; padding-block: 36px 24px; }
 .card { display: flex; flex-direction: column; text-decoration: none; color: inherit; min-width: 0; }
 .card .art { border-radius: 4px; overflow: hidden; aspect-ratio: 16 / 10; max-width: 100%; position: relative; }
 .card .art img { width: 100%; height: 100%; object-fit: cover; object-position: 0% 50%; display: block; transition: transform 0.4s ease; }
@@ -91,7 +83,6 @@ footer h3 { font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; 
 footer ul { margin: 0; padding-left: 18px; }
 footer p { margin: 0; }
 @media (max-width: 860px) {
-  .range-bar, .range-ends { display: none; }
   .cards { grid-template-columns: 1fr; gap: 44px; }
   .card .stop { display: block; font-family: var(--sans); font-size: 12px; color: var(--muted); margin: 14px 0 -10px; }
 }
@@ -119,10 +110,6 @@ footer p { margin: 0; }
     <div><b>26 of 50</b>Council votes to pass a budget</div>
   </div>
 
-  <section class="range" aria-label="Three ways to tell the same story">
-    <div class="range-ends"><span>← Straight news</span><span>Full simulation →</span></div>
-    <div class="range-bar" aria-hidden="true"><div>1 · News quiz</div><div>2 · Game-show quiz</div><div>3 · Simulation game</div></div>
-  </section>
   <main class="cards">
     <a class="card q" href="quiz/">
       <div class="art">
