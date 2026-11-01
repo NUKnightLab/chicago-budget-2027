@@ -74,12 +74,24 @@ h1 { font-weight: 700; font-size: clamp(36px, 7vw, 64px); line-height: 1.04; let
 .quiz-art span { font-family: var(--sans); font-size: 13px; border: 1px solid #c7c7c7; background: #fff; border-radius: 4px; padding: 7px 10px; }
 .quiz-art span.ok { border-color: #1d7a46; background: #e8f3ec; display: flex; justify-content: space-between; }
 .quiz-art span.ok::after { content: "✓"; color: #1d7a46; font-weight: 800; }
+.build { border-top: 1px solid var(--ink); padding-block: 22px 32px; }
+.build h3 { font-family: var(--sans); font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; margin: 0 0 4px; }
+.build .intro { font-family: var(--sans); font-size: 14px; color: var(--muted); margin: 0 0 18px; line-height: 1.5; }
+.times { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 28px; }
+.times div { min-width: 0; }
+.times .what { font-family: var(--sans); font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.times b { display: block; font-size: 30px; font-weight: 700; line-height: 1.1; margin: 4px 0 6px; font-variant-numeric: lining-nums; }
+.times p { font-size: 15px; line-height: 1.5; color: var(--ink-2); margin: 0; }
+.total { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 14px; margin-top: 22px; padding-top: 16px; border-top: 1px solid var(--rule); }
+.total b { font-size: 22px; font-weight: 700; }
+.total span { font-family: var(--sans); font-size: 14px; color: var(--muted); line-height: 1.5; }
 footer { border-top: 1px solid var(--ink); margin-top: 16px; padding-block: 18px 48px; font-family: var(--sans); font-size: 13px; line-height: 1.6; color: var(--muted); display: grid; grid-template-columns: 1.4fr 1fr; gap: 28px; }
 footer h3 { font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink); margin: 0 0 6px; }
 footer ul { margin: 0; padding-left: 18px; }
 footer p { margin: 0; }
 @media (max-width: 860px) {
   .cards { grid-template-columns: 1fr; gap: 44px; }
+  .times { grid-template-columns: 1fr; gap: 20px; }
   .card .stop { display: block; font-family: var(--sans); font-size: 12px; color: var(--muted); margin: 14px 0 -10px; }
 }
 @media (max-width: 760px) {
@@ -138,6 +150,32 @@ footer p { margin: 0; }
       <span class="go">Play the game →</span>
     </a>
   </main>
+
+  <section class="build" aria-labelledby="build-h">
+    <h3 id="build-h">How long the AI took</h3>
+    <p class="intro">All three pieces were built by an AI coding agent (Claude Code) on Nov. 1, 2026. Times come from the session log.</p>
+    <div class="times">
+      <div>
+        <span class="what">News quiz</span>
+        <b>About 2 min.</b>
+        <p>Writing the five questions and the quiz page. The same 3½-minute request also produced the first version of this page and a test pass on desktop and phone.</p>
+      </div>
+      <div>
+        <span class="what">Ballpark!</span>
+        <b>About 4 min.</b>
+        <p>Two minutes to write the game and two more to test and fix it. The same 6-minute request also redesigned this page and published the site.</p>
+      </div>
+      <div>
+        <span class="what">Gap City</span>
+        <b>About 26 min.</b>
+        <p>About 3 minutes reading the sources, 20 writing the 3D game and 3 testing, fixing and publishing a first version. Most of the work was deciding the budget choices and placing Chicago’s landmarks.</p>
+      </div>
+    </div>
+    <div class="total">
+      <b>About 49 minutes</b>
+      <span>from the first request to this site going live. That doesn’t count the time a person spent reviewing the work and asking for changes. Fast isn’t the same as checked: the figures were checked against the sources below, and they still deserve an editor’s review.</span>
+    </div>
+  </section>
 
   <footer>
     <div>
